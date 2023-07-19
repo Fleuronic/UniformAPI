@@ -419,11 +419,7 @@ private extension API {
 
 	func createSchedule(for events: [EventCalendarFields], from year: Int) async {
 		let store = EKEventStore()
-		if #available(iOS 17.0, *) {
-			_ = try! await store.requestFullAccessToEvents()
-		} else {
-			_ = try! await store.requestAccess(to: .event)
-		}
+		_ = try! await store.requestAccess(to: .event)
 
 		let calendar = store.calendars(for: .event).filter { $0.title == "Drum Corps" }.first!
 		removeExistingEvents(for: year, from: calendar, in: store)

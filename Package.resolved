@@ -6,7 +6,7 @@
       "location" : "https://github.com/Fleuronic/Caesura",
       "state" : {
         "branch" : "main",
-        "revision" : "f0d791370930959fa9320de1d42dba77b73c95ed"
+        "revision" : "6c3df272f86297732b77ceb9e799a7fecba750ad"
       }
     },
     {
@@ -43,6 +43,24 @@
       "state" : {
         "revision" : "b4f23e24b5a1bff301efc5e70871083ca029ff95",
         "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "diesel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/Diesel",
+      "state" : {
+        "branch" : "main",
+        "revision" : "dd1143faa2bfa3e183a5c1f6c4184a8ba5bf97eb"
+      }
+    },
+    {
+      "identity" : "dieselservice",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/DieselService",
+      "state" : {
+        "branch" : "main",
+        "revision" : "3c1459e055c03dd0e2b0f0a67d15d8935cc3add1"
       }
     },
     {
@@ -105,7 +123,7 @@
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "1a907873813466fac2b3cdbbacac3edef4765505"
+        "revision" : "6ff1809afbf9aa0305352c0966f9edf019d52075"
       }
     },
     {
@@ -114,7 +132,7 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "86654bc370e4eb2191c1a44ddd17dcc5948517aa"
+        "revision" : "fbbd2e24c068c0383c455ab0551a625b66080c21"
       }
     }
   ],
