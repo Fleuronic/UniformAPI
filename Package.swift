@@ -2,30 +2,30 @@
 import PackageDescription
 
 let package = Package(
-    name: "UniformAPI",
+	name: "UniformAPI",
 	platforms: [
-		.iOS(.v13),
-		.macOS(.v10_15),
-		.tvOS(.v13),
-		.watchOS(.v6)
+		.iOS(.v15),
+		.macOS(.v12),
+		.tvOS(.v15),
+		.watchOS(.v8)
 	],
-    products: [
-        .library(
-            name: "UniformAPI",
-            targets: ["UniformAPI"]
+	products: [
+		.library(
+			name: "UniformAPI",
+			targets: ["UniformAPI"]
 		)
-    ],
+	],
 	dependencies: [
 		.package(url: "https://github.com/Fleuronic/UniformService", branch: "main"),
 		.package(url: "https://github.com/Fleuronic/Caesura", branch: "main")
 	],
-    targets: [
-        .target(
-            name: "UniformAPI",
-            dependencies: [
+	targets: [
+		.target(
+			name: "UniformAPI",
+			dependencies: [
 				"UniformService",
 				"Caesura"
 			]
 		)
-    ]
+	]
 )

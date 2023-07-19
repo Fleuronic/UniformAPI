@@ -46,24 +46,6 @@
       }
     },
     {
-      "identity" : "diesel",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Fleuronic/Diesel",
-      "state" : {
-        "branch" : "main",
-        "revision" : "bff364c2ab8a29e56607d10fb81933ac0ed42ed3"
-      }
-    },
-    {
-      "identity" : "dieselservice",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Fleuronic/DieselService",
-      "state" : {
-        "branch" : "main",
-        "revision" : "e6bdb04af9f32aaf1aec1da3649cf186f539cf76"
-      }
-    },
-    {
       "identity" : "differ",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tonyarnold/Differ.git",
@@ -115,6 +97,24 @@
       "state" : {
         "revision" : "dd8368fcf1f8fef5d672ea64775dc6f7b02d7a92",
         "version" : "0.1.12"
+      }
+    },
+    {
+      "identity" : "uniform",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/Uniform",
+      "state" : {
+        "branch" : "main",
+        "revision" : "1a907873813466fac2b3cdbbacac3edef4765505"
+      }
+    },
+    {
+      "identity" : "uniformservice",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/UniformService",
+      "state" : {
+        "branch" : "main",
+        "revision" : "86654bc370e4eb2191c1a44ddd17dcc5948517aa"
       }
     }
   ],
