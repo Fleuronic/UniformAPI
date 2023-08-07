@@ -1,5 +1,6 @@
 // Copyright © Fleuronic LLC. All rights reserved.
 
+import enum Catenary.Request
 import struct Foundation.URL
 import class Foundation.JSONDecoder
 import class Foundation.DateFormatter
@@ -19,6 +20,13 @@ extension API: HasuraAPI {
 	// MARK: API
 	public var baseURL: URL {
 		URL(string: "https://diesel.hasura.app/v1/graphql")!
+	}
+
+	public var authenticationHeader: Request.Header? {
+		.init(
+			field: "x-hasura-admin-secret",
+			value: apiKey
+		)
 	}
 
 	public var decoder: JSONDecoder {
