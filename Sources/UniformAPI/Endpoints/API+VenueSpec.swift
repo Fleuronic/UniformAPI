@@ -9,7 +9,7 @@ import protocol Catenary.API
 
 extension API: VenueSpec {
 	public func find(_ venue: Venue, at address: Address.Identified) async -> Self.Result<Venue.Identified> {
-        await fetch(where: venue.matches).asyncFlatMap { ids in
+		await fetch(where: venue.matches).asyncFlatMap { ids in
 			await ids.first.map { id in
 				.success(
 					venue.identified(
@@ -20,7 +20,7 @@ extension API: VenueSpec {
 			}.asyncMapNil {
 				let venue = venue.identified(address: address)
 				return await insert(venue).map { _ in venue }
-            }
-        }
-    }
+			}
+		}
+	}
 }

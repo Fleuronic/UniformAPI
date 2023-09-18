@@ -6,12 +6,12 @@ import protocol UniformService.DivisionSpec
 import protocol Catenary.API
 
 extension API: DivisionSpec {
-    public func find(_ division: Division) async -> Self.Result<Division.Identified> {
+	public func find(_ division: Division) async -> Self.Result<Division.Identified> {
 		await fetch(where: division.matches).asyncFlatMap { ids in
 			await ids.first.map(division.identified).map(Result.success).asyncMapNil {
-                let division = division.identified()
-                return await insert(division).map { _ in division }
-            }
-        }
-    }
+				let division = division.identified()
+				return await insert(division).map { _ in division }
+			}
+		}
+	}
 }
