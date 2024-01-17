@@ -6,7 +6,7 @@
       "location" : "https://github.com/Fleuronic/Caesura",
       "state" : {
         "branch" : "main",
-        "revision" : "93c998acbae9530487de5b3e6a82779698667e46"
+        "revision" : "d96eed1013a0ee3035476d8c9b66a5080c30f9c2"
       }
     },
     {
@@ -15,7 +15,7 @@
       "location" : "https://github.com/Fleuronic/Catena",
       "state" : {
         "branch" : "main",
-        "revision" : "ef685764ba13c9da00c6bb0a0089babaa7f9ecd2"
+        "revision" : "4ca5c0ad5552f60dde02ae6fbebad2d8662d259b"
       }
     },
     {
@@ -24,7 +24,7 @@
       "location" : "https://github.com/Fleuronic/Catenary",
       "state" : {
         "branch" : "main",
-        "revision" : "80e8f3800b0027ee1164f79eac6f2ed903542b61"
+        "revision" : "8dc67ce7511bfede0ef88585f717fa2ede6cca81"
       }
     },
     {
@@ -51,7 +51,7 @@
       "location" : "https://github.com/Fleuronic/Diesel.git",
       "state" : {
         "branch" : "main",
-        "revision" : "f3256c6e4a6e254b838e80b54201dbbd0851bd67"
+        "revision" : "c477e26e034253b87dd59169ab63c60cf08bb333"
       }
     },
     {
@@ -60,7 +60,7 @@
       "location" : "https://github.com/Fleuronic/DieselService",
       "state" : {
         "branch" : "main",
-        "revision" : "726730ed879a7a92d3c0883b4698f8e43676fcda"
+        "revision" : "9979ba9ffa86be57a036da1a743a3c8e6e7df097"
       }
     },
     {
@@ -82,12 +82,21 @@
       }
     },
     {
+      "identity" : "initmacro",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/LeonardoCardoso/InitMacro.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "6b1488c4b540c70e1952dd2ece985dbe266e8964"
+      }
+    },
+    {
       "identity" : "persistdb",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fleuronic/PersistDB",
       "state" : {
         "branch" : "master",
-        "revision" : "c5938f5614d937bd342a44a6960108fa754abac8"
+        "revision" : "edc45a9c1a217c6640af2b8b1f2a2bc538997641"
       }
     },
     {
@@ -105,7 +114,7 @@
       "location" : "https://github.com/Fleuronic/Schemata",
       "state" : {
         "branch" : "master",
-        "revision" : "15a11bd95cd8e3f4459d7d3531c6b89bfbed5dc9"
+        "revision" : "0f0669c9f8bab8769c2710f5d3a91de95a2533d6"
       }
     },
     {
@@ -118,12 +127,21 @@
       }
     },
     {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax",
+      "state" : {
+        "revision" : "74203046135342e4a4a627476dd6caf8b28fe11b",
+        "version" : "509.0.0"
+      }
+    },
+    {
       "identity" : "uniform",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "a7b3523e11e9c023460afa6bf38d49d209344295"
+        "revision" : "cb9a641a4fdc1529f3736a432c8b06175f91d095"
       }
     },
     {
@@ -132,7 +150,7 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "0219abd8bd959ffa41c32cd692b002d4af0459bc"
+        "revision" : "2d6e38d152c67427a283d6dbce553fa495ffd039"
       }
     },
     {
