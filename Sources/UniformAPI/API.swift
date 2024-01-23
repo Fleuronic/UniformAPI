@@ -19,7 +19,7 @@ public struct API {
 public extension API {
 	init(apiKey: String) {
 		self.apiKey = apiKey
-
+		
 		dateFormatter = DateFormatter()
 		dateFormatter.dateFormat = "YYYY-MM-dd"
 		timeFormatter = ISO8601DateFormatter()
