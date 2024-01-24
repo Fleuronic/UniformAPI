@@ -25,9 +25,7 @@ extension API: CorpsSpec {
 			}
 		} else {
 			await fetch(CorpsNameLocationFields.self, where: corps.matches).asyncFlatMap { fields in
-				await fields.first.map { fields in
-					.success(.init(fields: fields))
-				}.asyncMapNil {
+				await fields.first.map(Corps.Identified.init).map(Self.Result.success).asyncMapNil {
 					let components = String.inserted(for: corps.name, from: .locations)!.components(separatedBy: ", ")
 					let location = Location(city: components[0], state: components[1])
 					return await find(location).asyncFlatMap { location in
