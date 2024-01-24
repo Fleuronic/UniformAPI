@@ -10,7 +10,7 @@ import protocol Catenary.API
 extension API: CorpsSpec {
 	public func find(_ corps: Corps, from location: Location.Identified?) async -> Self.Result<Corps.Identified> {
 		if let location {
-			return await fetch(where: corps.matches(with: location)).asyncFlatMap { ids in
+			await fetch(where: corps.matches(with: location)).asyncFlatMap { ids in
 				await ids.first.map { id in
 					.success(
 						corps.identified(
@@ -24,7 +24,7 @@ extension API: CorpsSpec {
 				}
 			}
 		} else {
-			return await fetch(CorpsNameLocationFields.self, where: corps.matches).asyncFlatMap { fields in
+			await fetch(CorpsNameLocationFields.self, where: corps.matches).asyncFlatMap { fields in
 				await fields.first.map { fields in
 					.success(.init(fields: fields))
 				}.asyncMapNil {
