@@ -47,7 +47,7 @@ extension API: HasuraAPI {
 		return decoder
 	}
 	
-	public func url(forPath path: String) -> URL {
+	public func url(for path: String) -> URL {
 		URL(string: "https://diesel.hasura.app/v1/\(path)")!
 	}
 }
