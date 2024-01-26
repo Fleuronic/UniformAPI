@@ -29,10 +29,6 @@ public extension API {
 // MARK: -
 extension API: HasuraAPI {
 	// MARK: API
-	public var baseURL: URL {
-		URL(string: "https://diesel.hasura.app/v1/graphql")!
-	}
-
 	public var authenticationHeader: Request.Header? {
 		.init(
 			field: "x-hasura-admin-secret",
@@ -49,5 +45,9 @@ extension API: HasuraAPI {
 			return dateFormatter.date(from: dateString) ?? timeFormatter.date(from: dateString)!
 		}
 		return decoder
+	}
+	
+	public func url(forPath path: String) -> URL {
+		URL(string: "https://diesel.hasura.app/v1/\(path)")!
 	}
 }
