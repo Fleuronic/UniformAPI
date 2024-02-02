@@ -6,7 +6,7 @@
       "location" : "https://github.com/Fleuronic/Caesura",
       "state" : {
         "branch" : "main",
-        "revision" : "c40587f262e1bece0a45697dbca4e15728b02cb0"
+        "revision" : "f47f99fd7acd61bbd5a6efcedffdd314f550e78c"
       }
     },
     {
@@ -15,7 +15,7 @@
       "location" : "https://github.com/Fleuronic/Catena",
       "state" : {
         "branch" : "main",
-        "revision" : "b7ed813f0a259dece94e97a9ebd8ba8cf0e23790"
+        "revision" : "f661161e30093f46a8ab0f5dd332a353afa03fdb"
       }
     },
     {
@@ -24,7 +24,7 @@
       "location" : "https://github.com/Fleuronic/Catenary",
       "state" : {
         "branch" : "main",
-        "revision" : "8dc67ce7511bfede0ef88585f717fa2ede6cca81"
+        "revision" : "aab47d2d922a92389449fffb54bc50332bac3657"
       }
     },
     {
@@ -33,7 +33,7 @@
       "location" : "https://github.com/Fleuronic/Catenoid",
       "state" : {
         "branch" : "main",
-        "revision" : "911c088ff3f4023fe35081c1712fbb05ac73c7b5"
+        "revision" : "053bc7cd09a4c08b0fc4b913d90a295db8fb6b4d"
       }
     },
     {
@@ -51,7 +51,7 @@
       "location" : "https://github.com/Fleuronic/Diesel.git",
       "state" : {
         "branch" : "main",
-        "revision" : "3aa7fb55f0d9cedde36ec6a35f87705aae9ab578"
+        "revision" : "95bafcc55e6d46e0a53d1404ce0c98a6e4d2e674"
       }
     },
     {
@@ -60,7 +60,7 @@
       "location" : "https://github.com/Fleuronic/DieselService",
       "state" : {
         "branch" : "main",
-        "revision" : "d09720f9f8932fc97e8cbb7bf1717a16b462cbb0"
+        "revision" : "cd224ddac1aa5d5a371da516acbe652d4ddf8ac8"
       }
     },
     {
@@ -70,6 +70,33 @@
       "state" : {
         "revision" : "5520fda947f1f9777a806389c2ba587219bc0538",
         "version" : "1.4.6"
+      }
+    },
+    {
+      "identity" : "geode",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/Geode",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b19af8aece8d41bbd416bc33bec6e75527728792"
+      }
+    },
+    {
+      "identity" : "geodeapi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/GeodeAPI",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a06c41d7530e9564c65bbf6d39fdaa48ec77f8a8"
+      }
+    },
+    {
+      "identity" : "geodeservice",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/GeodeService",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5723e9fad3f0613aab933fe1880d63ee20501c19"
       }
     },
     {
@@ -87,7 +114,7 @@
       "location" : "https://github.com/LeonardoCardoso/InitMacro.git",
       "state" : {
         "branch" : "main",
-        "revision" : "6b1488c4b540c70e1952dd2ece985dbe266e8964"
+        "revision" : "41beaa5cc3f8884385df6d0acf49f79821ab2496"
       }
     },
     {
@@ -141,7 +168,7 @@
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "a33464f62fa92493d66e324598fc42ad4978dda3"
+        "revision" : "706a6f6d7c749f3ecc2738ace4456831769a6aeb"
       }
     },
     {
@@ -150,7 +177,7 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "0b678b87a53190a44722c1da47917c03ab61308d"
+        "revision" : "d4af75b7f86dec01827e306175aaa865b46d5073"
       }
     },
     {
