@@ -1,3 +1,5 @@
+// Copyright © Fleuronic LLC. All rights reserved.
+
 import enum Uniform.Span
 import struct Uniform.Event
 import struct Uniform.Placement
@@ -56,6 +58,7 @@ extension API: PlacementSpec {
 	}
 }
 
+// MARK: -
 private extension API {
 	func placements(
 		slug: String,
