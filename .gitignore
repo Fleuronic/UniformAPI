@@ -1,8 +1,8 @@
 .DS_Store
+*.d
+*.dia
+*.swiftdeps
+*.swiftmodule
 /.build
+/.vscode
 /.swiftpm
-/Packages
-/*.xcodeproj
-/*.xcworkspacedata
-xcuserdata/
-DerivedData/
