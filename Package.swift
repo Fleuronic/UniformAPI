@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
@@ -13,19 +13,22 @@ let package = Package(
 		.library(
 			name: "UniformAPI",
 			targets: ["UniformAPI"]
-		)
+		),
 	],
 	dependencies: [
-		.package(url: "https://github.com/Fleuronic/UniformService", branch: "main"),
-		.package(url: "https://github.com/Fleuronic/Caesura", branch: "main")
+		.package(url: "https://github.com/Fleuronic/UniformService", branch: "main")
 	],
 	targets: [
 		.target(
 			name: "UniformAPI",
-			dependencies: [
-				"UniformService",
-				"Caesura"
-			]
+			dependencies: ["UniformService"]
 		)
-	]
+	],
+	swiftLanguageModes: [.v6]
 )
+
+for target in package.targets {
+	target.swiftSettings = [
+		.enableExperimentalFeature("StrictConcurrency")
+	]
+}
