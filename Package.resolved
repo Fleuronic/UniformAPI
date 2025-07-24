@@ -1,21 +1,13 @@
 {
+  "originHash" : "bf88bd6328d4f21131263196fc6e9655103810c14edcb3377d495b241d028f7f",
   "pins" : [
-    {
-      "identity" : "caesura",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Fleuronic/Caesura",
-      "state" : {
-        "branch" : "main",
-        "revision" : "f0d791370930959fa9320de1d42dba77b73c95ed"
-      }
-    },
     {
       "identity" : "catena",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fleuronic/Catena",
       "state" : {
         "branch" : "main",
-        "revision" : "8323ea025431d255506c292fff1c8ccd016cec57"
+        "revision" : "a856acd87172d24630cb9c3950de724d4df6312a"
       }
     },
     {
@@ -24,7 +16,7 @@
       "location" : "https://github.com/Fleuronic/Catenary",
       "state" : {
         "branch" : "main",
-        "revision" : "110fb9e750a901cd0b0b23ccd3af300209e33075"
+        "revision" : "90797585c762fd22505be4bcc9ebbb55f92c3fb7"
       }
     },
     {
@@ -33,22 +25,13 @@
       "location" : "https://github.com/Fleuronic/Catenoid",
       "state" : {
         "branch" : "main",
-        "revision" : "acf392cae2cb0cdb517d4912dbed7a7549f2e7d8"
-      }
-    },
-    {
-      "identity" : "collectionconcurrencykit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JohnSundell/CollectionConcurrencyKit.git",
-      "state" : {
-        "revision" : "b4f23e24b5a1bff301efc5e70871083ca029ff95",
-        "version" : "0.2.0"
+        "revision" : "286cf310d8c9fbd00dfea46baf49cd6de3fdf393"
       }
     },
     {
       "identity" : "differ",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tonyarnold/Differ.git",
+      "location" : "https://github.com/tonyarnold/Differ",
       "state" : {
         "revision" : "5520fda947f1f9777a806389c2ba587219bc0538",
         "version" : "1.4.6"
@@ -59,17 +42,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/JohnSundell/Identity",
       "state" : {
-        "revision" : "c3c9102e8d5c2cfcc44a8c7c4bbb7cf3f7c12be9",
-        "version" : "0.3.0"
+        "branch" : "master",
+        "revision" : "ff9dfdf4df87ff0d7064d40bdc230c5e55f0bcbf"
       }
     },
     {
       "identity" : "persistdb",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Fleuronic/PersistDB",
+      "location" : "https://github.com/jordanekay/PersistDB",
       "state" : {
         "branch" : "master",
-        "revision" : "d4b550cb11f2abad400431d308291974cd14a6b9"
+        "revision" : "1fcce3a2e8d5ff8dcd52ab60a743bc0fb9f06c78"
       }
     },
     {
@@ -84,10 +67,10 @@
     {
       "identity" : "schemata",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Fleuronic/Schemata",
+      "location" : "https://github.com/jordanekay/Schemata",
       "state" : {
         "branch" : "master",
-        "revision" : "32be7bd5f65405678257aeee76859b03cffb89e7"
+        "revision" : "1c5443b01cd2fb9f25e63197cfe35b96ba9bd2fc"
       }
     },
     {
@@ -105,7 +88,7 @@
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "1a907873813466fac2b3cdbbacac3edef4765505"
+        "revision" : "bbfce81213f0190344488bb79b310c7f561ae567"
       }
     },
     {
@@ -114,9 +97,9 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "86654bc370e4eb2191c1a44ddd17dcc5948517aa"
+        "revision" : "8b80eb3c45509b491a3b8db97d636cef10b1178f"
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
