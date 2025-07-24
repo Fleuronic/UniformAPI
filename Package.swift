@@ -16,12 +16,16 @@ let package = Package(
 		),
 	],
 	dependencies: [
-		.package(url: "https://github.com/Fleuronic/UniformService", branch: "main")
+		.package(url: "https://github.com/Fleuronic/UniformService", branch: "main"),
+		.package(url: "https://github.com/tid-kijyun/Kanna.git", from: "5.2.2")
 	],
 	targets: [
 		.target(
 			name: "UniformAPI",
-			dependencies: ["UniformService"]
+			dependencies: [
+				"UniformService",
+				"Kanna"
+			]
 		)
 	],
 	swiftLanguageModes: [.v6]
