@@ -3,11 +3,15 @@
 import Kanna
 import Foundation
 import struct Uniform.Corps
+import struct Catena.ImpossibleFields
 import protocol Catena.ResultProviding
-import protocol Catenoid.Fields
 import protocol UniformService.CorpsSpec
 
 extension API: CorpsSpec {
+	public func fetchCorps(with id: Corps.ID) async -> SingleResult<ImpossibleFields<CorpsSpecifiedFields>> {
+		//
+	}
+
 	public func listCorps() async -> Results<CorpsSpecifiedFields> {
 		do {
 			let url = URL(string: "https://www.dcxmuseum.org/corps.cfm")!
@@ -28,12 +32,10 @@ extension API: CorpsSpec {
 							}
 						}
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-				}.filter { !$0.isEmpty }.map { row in
+				}.filter { !$0.isEmpty && !$0[1].isEmpty }.map { row in
 					CorpsSpecifiedFields(
 						id: .init(rawValue: Int(row[0])!),
-						value: .init(
-							name: row[1]
-						)
+						name: row[1]
 					)
 				}
 			
