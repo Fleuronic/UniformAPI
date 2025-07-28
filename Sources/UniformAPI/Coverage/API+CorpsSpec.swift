@@ -3,13 +3,12 @@
 import Kanna
 import Foundation
 import struct Uniform.Corps
-import struct Catena.ImpossibleFields
 import protocol Catena.ResultProviding
 import protocol UniformService.CorpsSpec
 
 extension API: CorpsSpec {
-	public func fetchCorps(with id: Corps.ID) async -> SingleResult<ImpossibleFields<CorpsSpecifiedFields>> {
-		//
+	public func fetchCorps(with id: Corps.InvalidID) async -> SingleResult<CorpsSpecifiedFields> {
+		// Cannot use API to fetch individual corps
 	}
 
 	public func listCorps() async -> Results<CorpsSpecifiedFields> {
