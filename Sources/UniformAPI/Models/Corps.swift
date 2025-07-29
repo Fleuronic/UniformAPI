@@ -1,4 +1,4 @@
-
+// Copyright © Fleuronic LLC. All rights reserved.
 
 import Catena
 import struct Uniform.Corps
