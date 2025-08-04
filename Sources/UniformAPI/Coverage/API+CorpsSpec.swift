@@ -3,6 +3,7 @@
 import Kanna
 import Foundation
 import struct Uniform.Corps
+import protocol Catena.Scoped
 import protocol Catena.ResultProviding
 import protocol UniformService.CorpsSpec
 
@@ -37,10 +38,10 @@ extension API: CorpsSpec {
 						name: row[1]
 					)
 				}
-			
+
 			return .success(corps)
 		} catch {
-			return .failure(error)
+			return .failure(.network(error as NSError))
 		}
 	}
 }

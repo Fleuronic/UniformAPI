@@ -3,49 +3,64 @@
 import Kanna
 import Foundation
 import struct Uniform.Event
+import struct DrumKit.Event
+import struct DrumKit.Location
+import struct DrumKit.Circuit
+import struct DrumKit.Show
+import struct DrumKitService.IdentifiedEvent
 import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
 
 extension API: EventSpec {
-	public func listEvents() async -> Results<EventSpecifiedFields> {
-		let year = 2025
+	public func listEvents(for year: Int) async -> Results<EventSpecifiedFields> {
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
 		do {
-			let events = try (6...6).compactMap { index -> EventSpecifiedFields? in
-				let showID = String(format: "%03d", index)
-				let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)")!
-				let html = try String(contentsOf: url, encoding: .utf8)
-
-				guard 
+			let events = try (1...1).compactMap { index -> EventSpecifiedFields? in
+				guard
+					case let showID = String(format: "%03d", index),
+					let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
+					case let html = try String(contentsOf: url, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8),
-					let header = (doc.xpath("//th[1]")
+					var header = (doc.xpath("//th[1]")
 						.first?
 						.innerHTML!
 						.components(separatedBy: "<br>")
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }) else { return nil }
 
-				let location = header[2]
-				let components = location.split(separator: " ")
-				let stateIndex = components.firstIndex { $0.count == 2 }!
-				let city = components[0..<stateIndex].joined(separator: " ")
-				let state = String(components[stateIndex])
-				let country = components[(stateIndex + 1)...].joined(separator: " ")
+				header[1] = "November 1, 2021"
+				header[2] = "Kansas City, MO"
+				header[3] = "AL"
 
-				return try EventSpecifiedFields(
-					id: .init(rawValue: Int(showID)!),
-					date: Date(header[1], strategy: formatStyle.parseStrategy),
-					city: city,
-					state: state,
-					country: country,
-					show: header[0],
-					circuit: header[3]
+				let id = Event.ID(rawValue: Int(showID)!)
+				let date = try! Date(header[1], strategy: formatStyle.parseStrategy)
+				let show = header[0]
+				let location = header[2].replacingOccurrences(of: ",", with: "")
+				let circuit = header[3]
+
+				return EventSpecifiedFields(
+					id: id,
+					date: date,
+					location: .init(name: location),
+					circuit: circuit,
+					show: show
 				)
 			}
-	
+
 			return .success(events)
 		} catch {
-			return .failure(error)
+			return .failure(.network(error as NSError))
 		}
+	}
+
+	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?) async -> SingleResult<DrumKit.Event.ID> {
+		await insert(
+			EventInput(
+				date: date, 
+				locationID: locationID, 
+				circuitID: circuitID, 
+				showID: showID
+			)
+		)	
 	}
 }
