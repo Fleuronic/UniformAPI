@@ -1,3 +1,4 @@
+import Uniform
 import PersistDB
 import struct DrumKit.Circuit
 import protocol Caesura.Input
@@ -10,28 +11,9 @@ struct CircuitInput {
 // MARK: -
 extension CircuitInput {
 	init(abbreviation: String) {
-		self.abbreviation = abbreviation
+		name = Circuit.name(for: abbreviation)
 
-		switch abbreviation {
-		case "DCI":
-			name = "Drum Corps International"
-		case "DCA":
-			name = "Drum Corps Associates"
-		case "DCM":
-			name = "Drum Corps Midwest"
-		case "DCH":
-			name = "Drum Corps Holland"
-		case "AL":
-			name = "American Legion"
-		case "VFW":
-			name = "Veterans of Foreign Wars"
-		case "CAMQ":
-			name = "Circuit des associations musicales du Québec"
-		case "FAMQ":
-			name = "Fédération des Associations Musicales du Québec"
-		default:
-			fatalError()
-		}
+		self.abbreviation = abbreviation
 	}
 }
 

@@ -2,7 +2,7 @@
 
 import Kanna
 import Foundation
-import struct Uniform.Event
+import Uniform
 import struct DrumKit.Event
 import struct DrumKit.Location
 import struct DrumKit.Circuit
@@ -16,34 +16,30 @@ extension API: EventSpec {
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
 		do {
-			let events = try (1...1).compactMap { index -> EventSpecifiedFields? in
+			let events = try (1...99).compactMap { index -> EventSpecifiedFields? in
 				guard
 					case let showID = String(format: "%03d", index),
 					let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
 					case let html = try String(contentsOf: url, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8),
-					var header = (doc.xpath("//th[1]")
+					let header = (doc.xpath("//th[1]")
 						.first?
 						.innerHTML!
 						.components(separatedBy: "<br>")
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }) else { return nil }
 
-				header[1] = "November 1, 2021"
-				header[2] = "Kansas City, MO"
-				header[3] = "AL"
-
-				let id = Event.ID(rawValue: Int(showID)!)
+				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let date = try! Date(header[1], strategy: formatStyle.parseStrategy)
 				let show = header[0]
 				let location = header[2].replacingOccurrences(of: ",", with: "")
 				let circuit = header[3]
 
-				return EventSpecifiedFields(
+				return  .init(
 					id: id,
 					date: date,
-					location: .init(name: location),
-					circuit: circuit,
-					show: show
+					location: EventSpecifiedFields.EventLocationFields(name: location),
+					circuit: EventSpecifiedFields.EventCircuitFields(name: circuit),
+					show: EventSpecifiedFields.EventShowFields(name: show)
 				)
 			}
 
