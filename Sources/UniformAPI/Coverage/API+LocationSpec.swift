@@ -7,7 +7,7 @@ import protocol Catena.ResultProviding
 import protocol UniformService.LocationSpec
 
 extension API: LocationSpec {
-	public func createLocation(basedIn city: String, inStateWith stateID: State.ID) async -> SingleResult<Location.ID> {
+	public func createLocation(in city: String, inStateWith stateID: State.ID) async -> SingleResult<Location.ID> {
 		await insert(
 			LocationInput(
 				city: city,

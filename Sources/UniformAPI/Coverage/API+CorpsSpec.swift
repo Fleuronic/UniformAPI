@@ -3,12 +3,15 @@
 import Kanna
 import Foundation
 import struct Uniform.Corps
+import struct DrumKit.Corps
+import struct DrumKit.Location
+import struct DrumKitService.IdentifiedCorps
 import protocol Catena.Scoped
 import protocol Catena.ResultProviding
 import protocol UniformService.CorpsSpec
 
 extension API: CorpsSpec {
-	public func fetchCorps(with id: Corps.InvalidID) async -> SingleResult<CorpsSpecifiedFields> {
+	public func fetchCorps(with id: Uniform.Corps.InvalidID) async -> SingleResult<CorpsSpecifiedFields> {
 		// Cannot use API to fetch individual corps
 	}
 
@@ -43,5 +46,14 @@ extension API: CorpsSpec {
 		} catch {
 			return .failure(.network(error as NSError))
 		}
+	}
+
+	public func createCorps(named name: String, basedInLocationWith locationID: Location.ID?) async -> SingleResult<DrumKit.Corps.ID> {
+		await insert(
+			CorpsInput(
+				name: name,
+				locationID: locationID
+			)
+		)
 	}
 }

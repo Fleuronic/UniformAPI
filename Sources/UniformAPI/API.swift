@@ -2,15 +2,10 @@
 
 import Papyrus
 import Schemata
+import DrumKit
 import enum Catenary.Request
 import struct Uniform.Event
 import struct Uniform.Corps
-import struct DrumKit.Event
-import struct DrumKit.Location
-import struct DrumKit.State
-import struct DrumKit.Country
-import struct DrumKit.Circuit
-import struct DrumKit.Show
 import struct Catenary.Schema
 import struct Caesura.EndpointAPI
 import protocol UniformService.EventFields
@@ -76,7 +71,14 @@ extension API: Schematic {
 			State.Identified.self,
 			Country.Identified.self,
 			Circuit.Identified.self,
-			Show.Identified.self
+			Show.Identified.self,
+			Venue.Identified.self,
+			Address.Identified.self,
+			ZIPCode.Identified.self,
+			Slot.Identified.self,
+			Feature.Identified.self,
+			Ensemble.Identified.self,
+			Performance.Identified.self
 		)
 	}
 }
