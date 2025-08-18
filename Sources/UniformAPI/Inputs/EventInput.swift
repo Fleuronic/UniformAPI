@@ -4,6 +4,7 @@ import struct DrumKit.Event
 import struct DrumKit.Location
 import struct DrumKit.Circuit
 import struct DrumKit.Show
+import struct DrumKit.Venue
 import protocol Caesura.Input
 
 struct EventInput {
@@ -11,6 +12,7 @@ struct EventInput {
 	let locationID: Location.ID
 	let circuitID: Circuit.ID?
 	let showID: Show.ID?
+	let venueID: Venue.ID?
 }
 
 extension EventInput: Input {
@@ -24,6 +26,7 @@ extension EventInput: Input {
 
 		circuitID.map { valueSet = valueSet.update(with: [\.circuit == $0]) }
 		showID.map { valueSet = valueSet.update(with: [\.show == $0]) }
+		venueID.map { valueSet = valueSet.update(with: [\.venue == $0]) }
 
 		return valueSet
 	}
