@@ -14,10 +14,11 @@ import protocol UniformService.EventSpec
 
 extension API: EventSpec {
 	public func listEvents(for year: Int) async -> Results<EventSpecifiedFields> {
+		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
 		do {
-			let events = try (54...54).compactMap { index -> EventSpecifiedFields? in
+			let events = try (1...108).compactMap { index -> EventSpecifiedFields? in
 				guard
 					case let showID = String(format: "%03d", index),
 					let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -46,18 +47,32 @@ extension API: EventSpec {
 
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let date = try! Date(header[1], strategy: formatStyle.parseStrategy)
-				let show = EventSpecifiedFields.EventShowFields(name: header[0])
+				let show = EventSpecifiedFields.EventShowFields(name: header[0], year: year)
+				let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
 				let location = EventSpecifiedFields.EventLocationFields(name: header[2])
 				let circuit = EventSpecifiedFields.EventCircuitFields(name: header[3])
-				let slug = (show?.name).flatMap(Show.slug)
-				let detailsURL = slug.flatMap { URL(string: "https://www.dci.org/events/\(year)-\($0)/") }
-				let scoresURL = slug.flatMap { URL(string: "https://www.dci.org/scores/final-scores/\(year)-\($0)/") }
+
+				let detailsURL: URL?
+				let scoresURL: URL?
+				if let slug {
+					slugs[slug, default: 0] += 1
+					let count = slugs[slug]!
+					let eventSlug = count > 1 ? "\(slug)-\(count)" : slug
+					let scoreSlug = Show.scoreSlug(for: eventSlug, in: year)
+
+					detailsURL = .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/")
+					scoresURL = .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")
+				} else {
+					detailsURL = nil
+					scoresURL = nil		
+				}
 
 				guard 
 					let detailsURL,
 					let html = try? String(contentsOf: detailsURL, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8),
-					let slotRows = (doc.xpath("//tbody[1]")
+					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text,
+					let slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
 						.first?
 						.xpath("//td")
 						.compactMap(\.text)),
@@ -68,6 +83,7 @@ extension API: EventSpec {
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 						.filter { !$0.isEmpty }) else { return nil }
 				
+				let timeZone = tableHeader.components(separatedBy: " ")[2]
 				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
 				let venue = venueName.map { name in
 					EventSpecifiedFields.EventVenueFields(
@@ -98,13 +114,15 @@ extension API: EventSpec {
 					.map(EventSpecifiedFields.EventSlotFields.init)
 
 				// print(show!.name)
+				// print(location)
 				// print(idRows)
+				// print(tableHeader)
 				// print(slotRows)
 
-				// return nil
 				return .init(
 					id: id,
 					date: date,
+					timeZone: timeZone,
 					location: location,
 					circuit: circuit,
 					show: show,
@@ -130,10 +148,6 @@ extension API: EventSpec {
 			)
 		)	
 	}
-}
-
-private extension API {
-	
 }
 
 // MARK: -

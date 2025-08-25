@@ -77,6 +77,7 @@ extension API: Schematic {
 			ZIPCode.Identified.self,
 			Slot.Identified.self,
 			Feature.Identified.self,
+			DrumKit.Corps.Identified.self,
 			Ensemble.Identified.self,
 			Performance.Identified.self
 		)

@@ -48,7 +48,7 @@ extension API: CorpsSpec {
 		}
 	}
 
-	public func createCorps(named name: String, basedInLocationWith locationID: Location.ID?) async -> SingleResult<DrumKit.Corps.ID> {
+	public func createCorps(named name: String, basedInLocationWith locationID: Location.ID) async -> SingleResult<DrumKit.Corps.ID> {
 		await insert(
 			CorpsInput(
 				name: name,
