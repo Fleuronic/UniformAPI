@@ -85,14 +85,12 @@ extension API: EventSpec {
 				
 				let timeZone = tableHeader.components(separatedBy: " ")[2]
 				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
-				let venue = venueName.map { name in
-					EventSpecifiedFields.EventVenueFields(
-						name: name,
-						address: EventSpecifiedFields.EventVenueFields.VenueAddressFields(
-							records: addressComponents.suffix(2)
-						)
+				let venue = EventSpecifiedFields.EventVenueFields(
+					name: venueName ?? "",
+					address: EventSpecifiedFields.EventVenueFields.VenueAddressFields(
+						records: addressComponents.suffix(2)
 					)
-				}
+				)
 
 				let scoreRows: [String]? = if 
 					let scoresURL,
