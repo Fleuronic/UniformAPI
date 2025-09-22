@@ -106,17 +106,38 @@ extension API: EventSpec {
 						.filter { $0 != "Place Corps Score" && !$0.contains("Powered") }
 				} else { nil }
 
-				let slots = slotRows
-					.chunked(into: 2)
-					.map { ($0[0], $0[1]) }
-					.map(EventSpecifiedFields.EventSlotFields.init)
+				var division: String? = nil
+				var placements: [String: EventSpecifiedFields.EventSlotFields.SlotPlacementFields] = [:]
+				if let scoreRows {
+					for row in scoreRows {
+						let components = row.components(separatedBy: " ")
+						let rank = Int(components[0])
+						if let rank {
+							let corps = components.dropFirst().dropLast().joined(separator: " ")
+							let score = Double(components.last!)!
+							placements[corps] = .init(
+								rank: rank,
+								score: score,
+								division: division!
+							)
+						} else {
+							division = row.replacingOccurrences(of: " - ", with: " ")
+						}
+					}
+				}
 
-				// print(show!.name)
-				// print(location)
-				// print(idRows)
-				// print(tableHeader)
-				// print(slotRows)
+				let slots = slotRows.chunked(into: 2).map { row in
+					let time = row[0]
+					let name = row[1]
+					let corps = name.components(separatedBy: " - ")[0]
+					return EventSpecifiedFields.EventSlotFields(
+						time: time,
+						name: name,
+						placement: placements[corps]
+					)
+				}
 
+				// return nil
 				return .init(
 					id: id,
 					date: date,

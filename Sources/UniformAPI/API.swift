@@ -79,7 +79,9 @@ extension API: Schematic {
 			Feature.Identified.self,
 			DrumKit.Corps.Identified.self,
 			Ensemble.Identified.self,
-			Performance.Identified.self
+			Performance.Identified.self,
+			Placement.Identified.self,
+			Division.Identified.self
 		)
 	}
 }
