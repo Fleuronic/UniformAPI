@@ -8,6 +8,7 @@ import struct DrumKit.Location
 import struct DrumKit.Circuit
 import struct DrumKit.Show
 import struct DrumKit.Venue
+import struct DrumKit.Placement
 import struct DrumKitService.IdentifiedEvent
 import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
@@ -129,15 +130,16 @@ extension API: EventSpec {
 				let slots = slotRows.chunked(into: 2).map { row in
 					let time = row[0]
 					let name = row[1]
-					let corps = name.components(separatedBy: " - ")[0]
+					let record = name.components(separatedBy: " - ")[0]
+					let groupName = Placement.groupName(for: record)
+
 					return EventSpecifiedFields.EventSlotFields(
 						time: time,
 						name: name,
-						placement: placements[corps]
+						placement: placements[groupName]
 					)
 				}
 
-				// return nil
 				return .init(
 					id: id,
 					date: date,
