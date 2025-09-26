@@ -19,7 +19,7 @@ extension API: EventSpec {
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
 		do {
-			let events = try (1...108).compactMap { index -> EventSpecifiedFields? in
+			let events = try (1...113).compactMap { index -> EventSpecifiedFields? in
 				guard
 					case let showID = String(format: "%03d", index),
 					let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -61,37 +61,12 @@ extension API: EventSpec {
 					let eventSlug = count > 1 ? "\(slug)-\(count)" : slug
 					let scoreSlug = Show.scoreSlug(for: eventSlug, in: year)
 
-					detailsURL = .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/")
-					scoresURL = .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")
+					detailsURL = year >= 2019 ? .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/") : nil
+					scoresURL = year >= 2013 ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/") : nil
 				} else {
 					detailsURL = nil
 					scoresURL = nil		
 				}
-
-				guard 
-					let detailsURL,
-					let html = try? String(contentsOf: detailsURL, encoding: .utf8),
-					let doc = try? HTML(html: html, encoding: .utf8),
-					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text,
-					let slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
-						.first?
-						.xpath("//td")
-						.compactMap(\.text)),
-					let addressComponents = (doc.xpath("//address")
-						.first?
-						.innerHTML?
-						.components(separatedBy: "<br>")
-						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-						.filter { !$0.isEmpty }) else { return nil }
-				
-				let timeZone = tableHeader.components(separatedBy: " ")[2]
-				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
-				let venue = EventSpecifiedFields.EventVenueFields(
-					name: venueName ?? "",
-					address: EventSpecifiedFields.EventVenueFields.VenueAddressFields(
-						records: addressComponents.suffix(2)
-					)
-				)
 
 				let scoreRows: [String]? = if 
 					let scoresURL,
@@ -107,7 +82,7 @@ extension API: EventSpec {
 						.filter { $0 != "Place Corps Score" && !$0.contains("Powered") }
 				} else { nil }
 
-				var division: String? = nil
+				var divisionName: String? = nil
 				var placements: [String: EventSpecifiedFields.EventSlotFields.SlotPlacementFields] = [:]
 				if let scoreRows {
 					for row in scoreRows {
@@ -119,12 +94,48 @@ extension API: EventSpec {
 							placements[corps] = .init(
 								rank: rank,
 								score: score,
-								division: division!
+								divisionName: divisionName!
 							)
 						} else {
-							division = row.replacingOccurrences(of: " - ", with: " ")
+							divisionName = row.replacingOccurrences(of: " - ", with: " ")
 						}
 					}
+				}
+
+				let slotRows: [String]
+				let addressComponents: [String]
+				let timeZone: String
+
+				if 
+					let detailsURL,
+					let html = try? String(contentsOf: detailsURL, encoding: .utf8),
+					let doc = try? HTML(html: html, encoding: .utf8),
+					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
+					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
+						.first!
+						.xpath("//td")
+						.compactMap(\.text))
+					addressComponents = (doc.xpath("//address")
+						.first!
+						.innerHTML!
+						.components(separatedBy: "<br>")
+						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+						.filter { !$0.isEmpty })
+					timeZone = tableHeader.components(separatedBy: " ")[2]
+				} else {
+					slotRows = []
+					addressComponents = []
+					timeZone = "GMT"
+				}
+
+				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
+				let venue = venueName.map { name in
+					EventSpecifiedFields.EventVenueFields(
+						name: venueName ?? "",
+						address: EventSpecifiedFields.EventVenueFields.VenueAddressFields(
+							records: addressComponents.suffix(2)
+						)
+					)	
 				}
 
 				let slots = slotRows.chunked(into: 2).map { row in
@@ -140,16 +151,17 @@ extension API: EventSpec {
 					)
 				}
 
-				return .init(
-					id: id,
-					date: date,
-					timeZone: timeZone,
-					location: location,
-					circuit: circuit,
-					show: show,
-					venue: venue,
-					slots: slots
-				)
+				return nil
+				// return .init(
+				// 	id: id,
+				// 	date: date,
+				// 	timeZone: timeZone,
+				// 	location: location,
+				// 	circuit: circuit,
+				// 	show: show,
+				// 	venue: venue,
+				// 	slots: slots
+				// )
 			}
 
 			return .success(events)
