@@ -217,6 +217,8 @@ extension API: EventSpec {
 				let event = EventSpecifiedFields(
 					id: id,
 					date: date,
+					detailsURL: detailsURL,
+					scoresURL: scoresURL,
 					timeZone: timeZone,
 					location: location,
 					circuit: circuit,
