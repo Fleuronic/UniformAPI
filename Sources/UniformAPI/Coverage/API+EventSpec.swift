@@ -148,10 +148,8 @@ extension API: EventSpec {
 					let ids = stride(from: initial, through: idRows.count - 1, by: multiple).map { idRows[$0] }
 
 					var records: [String] = []
-					print(show)
-					print(ids.filter { $0.contains("-") })
 
-					for id in ids where !id.contains("-") {
+					for id in ids where !id.contains("-") && id != "99999" {
 						let record = await corpsRecord(id)
 						let name = record.components(separatedBy: " - ")[0]
 
@@ -227,11 +225,9 @@ extension API: EventSpec {
 					slots: slots
 				)
 
-				if circuit.abbreviation != "DCI" {
-					// print(event)
-					if let event {
-						events.append(event)
-					}
+				// print(event)
+				if let event {
+					events.append(event)
 				}
 			}
 
@@ -241,14 +237,16 @@ extension API: EventSpec {
 		}
 	}
 
-	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?) async -> SingleResult<DrumKit.Event.ID> {
+	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
 		await insert(
 			EventInput(
 				date: date, 
 				locationID: locationID, 
 				circuitID: circuitID, 
 				showID: showID,
-				venueID: venueID
+				venueID: venueID,
+				detailsURL: detailsURL,
+				scoresURL: scoresURL
 			)
 		)	
 	}
