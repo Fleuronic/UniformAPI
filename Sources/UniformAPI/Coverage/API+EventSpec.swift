@@ -241,12 +241,12 @@ extension API: EventSpec {
 		await insert(
 			EventInput(
 				date: date, 
+				detailsURL: detailsURL,
+				scoresURL: scoresURL,
 				locationID: locationID, 
 				circuitID: circuitID, 
 				showID: showID,
-				venueID: venueID,
-				detailsURL: detailsURL,
-				scoresURL: scoresURL
+				venueID: venueID
 			)
 		)	
 	}
