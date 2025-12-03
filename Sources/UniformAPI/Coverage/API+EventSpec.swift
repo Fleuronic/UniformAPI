@@ -20,46 +20,59 @@ extension API: EventSpec {
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			for index in 1...147 {
-				guard
-					case let showID = String(format: "%03d", index),
-					let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
-					case let html = try String(contentsOf: url, encoding: .utf8),
-					let doc = try? HTML(html: html, encoding: .utf8),
-					let header = (doc.xpath("//th[1]")
-						.first?
-						.innerHTML?
-						.components(separatedBy: "<br>")
-						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
-					!header[2].isEmpty, !header[2].contains("Online") else { continue }
-
-				var idRows = doc.xpath("//td")
-					.compactMap { element in
-						if let url = element.xpath("a").first?["href"] {
-							let components = url.components(separatedBy: "=")
-							if  components.count > 2 {
-								return components[2].components(separatedBy: "&")[0]
+			for index in 21...70 {
+				let showID = String(format: "%03d", index)
+				let id = Uniform.Event.ID(rawValue: Int(showID)!)
+				let idRows: [String]
+				let date: Date
+				let location: EventSpecifiedFields.EventLocationFields?
+				let show: EventSpecifiedFields.EventShowFields?
+				let circuitName: String
+				if year < 2026 {
+					guard
+						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
+						case let html = try String(contentsOf: url, encoding: .utf8),
+						let doc = try? HTML(html: html, encoding: .utf8),
+						let header = (doc.xpath("//th[1]")
+							.first?
+							.innerHTML?
+							.components(separatedBy: "<br>")
+							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
+						!header[2].isEmpty, !header[2].contains("Online") else { continue }
+					idRows = doc.xpath("//td")
+						.compactMap { element in
+							if let url = element.xpath("a").first?["href"] {
+								let components = url.components(separatedBy: "=")
+								if  components.count > 2 {
+									return components[2].components(separatedBy: "&")[0]
+								} else {
+									return element.text
+								}
 							} else {
 								return element.text
 							}
-						} else {
-							return element.text
 						}
-					}
-					.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+					date = try! Date(header[1], strategy: formatStyle.parseStrategy)
+					location = EventSpecifiedFields.EventLocationFields(name: header[2])
+					show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
+					circuitName = header[3]
+				} else {
+					idRows = []
+					let pendingEvent = pending[index - 1]
+					date = try! Date(pendingEvent.1, strategy: formatStyle.parseStrategy)
+					location = EventSpecifiedFields.EventLocationFields(name: pendingEvent.2)
+					show = EventSpecifiedFields.EventShowFields(name: pendingEvent.0, city: location?.city, year: year)
+					circuitName = "DCI"
+				}
 
-				let id = Uniform.Event.ID(rawValue: Int(showID)!)
-				let date = try! Date(header[1], strategy: formatStyle.parseStrategy)
-				let location = EventSpecifiedFields.EventLocationFields(name: header[2])
-				let show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
-				let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
-				
 				guard 
 					/* Year from date matches year */
 					Show.isValid(with: show?.name) else { continue }
 
 				let detailsURL: URL?
 				let scoresURL: URL?
+				let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
 				if let slug {
 					slugs[slug, default: 0] += 1
 					let count = slugs[slug]!
@@ -90,9 +103,11 @@ extension API: EventSpec {
 				var divisionName: String? = nil
 				var exhibitionCorps: [String] = []
 				var placements: [String: EventSpecifiedFields.EventSlotFields.SlotPlacementFields] = [:]
-				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? header[3] : "DCI")
+				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? circuitName : "DCI")
 
+				let validScoresURL: URL?
 				if let scoreRows {
+					validScoresURL = scoresURL
 					for row in scoreRows {
 						let components = row.components(separatedBy: " ")
 						let rank = Int(components[0])
@@ -114,11 +129,14 @@ extension API: EventSpec {
 							divisionName = row.replacingOccurrences(of: " - ", with: " ")
 						}
 					}
+				} else {
+					validScoresURL = nil
 				}
 
 				var slotRows: [String] = []
 				let addressComponents: [String]
 				let timeZone: String
+				let validDetailsURL: URL?
 
 				if 
 					let detailsURL,
@@ -136,6 +154,7 @@ extension API: EventSpec {
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 						.filter { !$0.isEmpty })
 					timeZone = tableHeader.components(separatedBy: " ")[2]
+					validDetailsURL = detailsURL
 				} else {
 					let corps = placements.keys + exhibitionCorps
 					let hasPictures = 
@@ -143,32 +162,35 @@ extension API: EventSpec {
 						idRows.count > 60 && idRows[60] == "0" || 
 						idRows.count > 180 && idRows[180] == "0" ||
 						idRows[0] == "0"
-					// print(idRows)
 					let (initial, multiple) = hasPictures ? (3, 5) : (2, 4)
 					let ids = stride(from: initial, through: idRows.count - 1, by: multiple).map { idRows[$0] }
 
 					var records: [String] = []
 
-					for id in ids where !id.contains("-") && id != "99999" {
-						let record = await corpsRecord(id)
+					for id in ids where !id.isEmpty && !id.contains("-") && id != "99999" {
+						let record = switch(id, year) {
+						case ("0", 2025): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
+						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
+						default: await corpsRecord(id)
+						}
+						
 						let name = record.components(separatedBy: " - ")[0]
-
 						if !corps.contains(name) {
 							records.append(record)
 							let index = idRows
 								.enumerated()
-								.first { $0.element == id && $0.offset % multiple == initial }!
+								.filter { $0.element == id && $0.offset % multiple == initial }
+								.last!
 								.offset
-							
-							let divisionName = idRows[index - 2]
-							let defaultDivisionName = "World Class"
-								
+
+							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? idRows[index - 2]
+							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
 									rank: rank,
 									score: score,
-									divisionName: divisionName.isEmpty ? defaultDivisionName : divisionName,
-									circuitAbbreviation: circuit.abbreviation
+									divisionName: divisionName.isEmpty ? nil : divisionName,
+									circuitAbbreviation: circuitAbbreviation
 								)
 							}
 						}
@@ -176,7 +198,9 @@ extension API: EventSpec {
 
 					for record in records {
 						if record.contains(" ,") || record.hasSuffix(" ") { fatalError() }
-						slotRows += ["", record]
+						if !slotRows.contains(record) {
+							slotRows += ["", record]
+						}
 					}
 
 					for corps in corps {
@@ -187,6 +211,7 @@ extension API: EventSpec {
 
 					addressComponents = []
 					timeZone = "GMT"
+					validDetailsURL = nil
 				}
 
 				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
@@ -217,8 +242,8 @@ extension API: EventSpec {
 				let event = EventSpecifiedFields(
 					id: id,
 					date: date,
-					detailsURL: detailsURL,
-					scoresURL: scoresURL,
+					detailsURL: validDetailsURL,
+					scoresURL: validScoresURL,
 					timeZone: timeZone,
 					location: location,
 					circuit: circuit,
@@ -227,7 +252,6 @@ extension API: EventSpec {
 					slots: slots
 				)
 
-				// print(event)
 				if let event {
 					events.append(event)
 				}
@@ -263,10 +287,81 @@ private extension Array {
 	}
 }
 
-// Initial check EPIC
+private let pending = [
+	("DCI Tour Preview", "June 26, 2026", "Muncie, IN"),
+	("Barnum Festival: Champions on Parade", "June 27, 2026", "Shelton, CT"),
+	("Drums Along the Rockies", "June 27, 2026", "Fort Collins, CO"),
+	("Corps Encore", "June 28, 2026", "Ogden, UT"),
+	("Drums Along the Columbia", "June 29, 2026", "Kennewick, WA"),
+	("Northwest Youth Music Games Seattle", "June 30, 2026", "Seattle, WA"),
+	("Northwest Youth Music Games Portland", "July 1, 2026", "Portland, OR"),
+	("Drums Across Nebraska", "July 1, 2026", "Omaha, NE"),
+	("Rotary Music Festival", "July 2, 2026", "Cedarburg, WI"),
+	("MidCal Championships", "July 2, 2026", "Oxnard, CA"),
+	("DCI Capital Classic", "July 3, 2026", "Sacramento, CA"),
+	("Show of Shows", "July 3, 2026", "Rockford, IL"),
+	("CrownBEAT", "July 3, 2026", "Lexington, SC"),
+	("River City Rhapsody", "July 5, 2026", "La Crosse, WI"),
+	("DCI West", "July 5, 2026", "Stanford, CA"),
+	("Drums Across the Smokies", "July 7, 2026", "Sevierville, TN"),
+	("The Kiwanis Thunder of Drums", "July 7, 2026", "Mankato, MN"),
+	("Drums Across America", "July 8, 2026", "Newnan, GA"),
+	("Celebration in Brass", "July 8, 2026", "Ankeny, IA"),
+	("Gold Showcase", "July 9, 2026", "Santa Clarita, CA"),
+	("DCI Northern Alabama", "July 9, 2026", "Muscle Shoals, AL"),
+	("Cavalcade of Brass", "July 10, 2026", "Lisle, IL"),
+	("Western Corps Connection", "July 10, 2026", "Walnut, CA"),
+	("Music on the March", "July 10, 2026", "Dubuque, IA"),
+	("DCI Little Rock", "July 11, 2026", "Little Rock, AR"),
+	("Drum Corps Grand Prix", "July 11, 2026", "Clifton, NJ"),
+	("Drum Corps at the Rose Bowl", "July 11, 2026", "Pasadena, CA"),
+	("The Whitewater Classic", "July 11, 2026", "Whitewater, WI"),
+	("So Cal Classic: Open Class Pacific Championship Finals", "July 12, 2026", "Buena Park, CA"),
+	("Drums Across the Desert", "July 13, 2026", "Mesa, AZ"),
+	("Brass Impact", "July 13, 2026", "Olathe, KS"),
+	("DCI New Mexico", "July 14, 2026", "Albuquerque, NM"),
+	("DCI Broken Arrow", "July 14, 2026", "Broken Arrow, OK"),
+	("DCI Hutchinson", "July 14, 2026", "Hutchinson, KS"),
+	("DCI Central Texas", "July 16, 2026", "Central, TX"),
+	("DCI Denton", "July 16, 2026", "Denton, TX"),
+	("DCI Houston", "July 17, 2026", "Houston, TX"),
+	("DCI Southwestern Championship", "July 18, 2026", "San Antonio, TX"),
+	("The Buccaneer Classic", "July 18, 2026", "Landisville, PA"),
+	("March On!", "July 18, 2026", "Champlin, MN"),
+	("DCI Dallas", "July 19, 2026", "Bedford, TX"),
+	("DCI McKinney", "July 20, 2026", "McKinney, TX"),
+	("DCI St. Louis", "July 21, 2026", "Belleville, IL"),
+	("DCI Southern Mississippi", "July 22, 2026", "Hattiesburg, MS"),
+	("Drums on the Ohio", "July 22, 2026", "Evansville, IN"),
+	("DCI New York", "July 24, 2026", "Central New York, NY"),
+	("DCI Nashville", "July 24, 2026", "Nashville, TN"),
+	("DCI Birmingham", "July 24, 2026", "Birmingham, AL"),
+	("Drums on Parade", "July 24, 2026", "Madison, WI"),
+	("DCI Southeastern Championship", "July 25, 2026", "Atlanta, GA"),
+	("Bushwackers Invitational", "July 25, 2026", "Mt. Olive, NJ"),
+	("Music on the Mountain", "July 25, 2026", "Sheffield, PA"),
+	("DCI in Motion", "July 26, 2026", "Norton, OH"),
+	("NightBEAT", "July 26, 2026", "Winston-Salem, NC"),
+	("Midwest Classic", "July 26, 2026", "DeKalb, IL"),
+	("DCI Annapolis", "July 28, 2026", "Annapolis, MD"),
+	("Brass at the Beach", "July 28, 2026", "Myrtle Beach, SC"),
+	("Summer Music Games in Cincinnati", "July 28, 2026", "Mason, OH"),
+	("DCI Delaware", "July 29, 2026", "Newark, DE"),
+	("DCI Huntington", "July 29, 2026", "Huntington, WV"),
+	("Summer Music Games of Southwest Virginia", "July 29, 2026", "Salem, VA"),
+	("DCI East Coast Showcase", "July 30, 2026", "Lawrence, MA"),
+	("The Marion Open", "July 30, 2026", "Marion, OH"),
+	("DCI Eastern Classic", "July 31, 2026", "Allentown, PA"),
+	("DCI Michigan", "July 31, 2026", "Allendale, MI"),
+	("DCI Eastern Classic", "August 1, 2026", "Allentown, PA"),
+	("Big Sounds in Motion", "August 2, 2026", "Downingtown, PA"),
+	("Innovations In Brass", "August 3, 2026", "Northeast, OH"),
+	("DCI World Championship Prelims", "August 6, 2026", "Indianapolis, IN"),
+	("DCI All-Age World Championship Prelims", "August 7, 2026", "Indianapolis, IN"),
+]
 
 // 2018-cabs-on-the-beach
-// 2018-sounds-on-the-susequehanna
+// 2018-sounds-on-the-susquehanna
 // 2018-barnum-festival-champions-on-parade
 // 2018-precision-&-pageantry
 // 2018-buccaneer-classic
