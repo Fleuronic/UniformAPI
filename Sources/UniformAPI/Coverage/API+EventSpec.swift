@@ -20,7 +20,7 @@ extension API: EventSpec {
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			for index in 21...70 {
+			for index in 1...71 {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let idRows: [String]
@@ -66,7 +66,7 @@ extension API: EventSpec {
 					circuitName = "DCI"
 				}
 
-				guard 
+				guard
 					/* Year from date matches year */
 					Show.isValid(with: show?.name) else { continue }
 
@@ -86,7 +86,7 @@ extension API: EventSpec {
 					scoresURL = nil
 				}
 
-				let scoreRows: [String]? = if 
+				let scoreRows: [String]? = if
 					let scoresURL,
 					let html = try? String(contentsOf: scoresURL, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8) {
@@ -138,15 +138,15 @@ extension API: EventSpec {
 				let timeZone: String
 				let validDetailsURL: URL?
 
-				if 
+				if
 					let detailsURL,
 					let html = try? String(contentsOf: detailsURL, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8),
 					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
 					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
-						.first!
+						.first?
 						.xpath("//td")
-						.compactMap(\.text))
+						.compactMap(\.text)) ?? []
 					addressComponents = (doc.xpath("//address")
 						.first!
 						.innerHTML!
@@ -157,9 +157,9 @@ extension API: EventSpec {
 					validDetailsURL = detailsURL
 				} else {
 					let corps = placements.keys + exhibitionCorps
-					let hasPictures = 
-						idRows.count > 10 && idRows[10] == "0" || 
-						idRows.count > 60 && idRows[60] == "0" || 
+					let hasPictures =
+						idRows.count > 10 && idRows[10] == "0" ||
+						idRows.count > 60 && idRows[60] == "0" ||
 						idRows.count > 180 && idRows[180] == "0" ||
 						idRows[0] == "0"
 					let (initial, multiple) = hasPictures ? (3, 5) : (2, 4)
@@ -173,7 +173,7 @@ extension API: EventSpec {
 						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
 						default: await corpsRecord(id)
 						}
-						
+
 						let name = record.components(separatedBy: " - ")[0]
 						if !corps.contains(name) {
 							records.append(record)
@@ -221,7 +221,7 @@ extension API: EventSpec {
 						address: EventSpecifiedFields.EventVenueFields.VenueAddressFields(
 							records: addressComponents.suffix(2)
 						)
-					)	
+					)
 				}
 
 				let hasTimes = timeZone != "GMT"
@@ -253,7 +253,9 @@ extension API: EventSpec {
 				)
 
 				if let event {
-					events.append(event)
+					// events.append(event)
+					// print(slots)
+					print(event)
 				}
 			}
 
@@ -266,15 +268,15 @@ extension API: EventSpec {
 	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
 		await insert(
 			EventInput(
-				date: date, 
+				date: date,
 				detailsURL: detailsURL,
 				scoresURL: scoresURL,
-				locationID: locationID, 
-				circuitID: circuitID, 
+				locationID: locationID,
+				circuitID: circuitID,
 				showID: showID,
 				venueID: venueID
 			)
-		)	
+		)
 	}
 }
 
@@ -290,19 +292,19 @@ private extension Array {
 private let pending = [
 	("DCI Tour Preview", "June 26, 2026", "Muncie, IN"),
 	("Barnum Festival: Champions on Parade", "June 27, 2026", "Shelton, CT"),
+	// ("Bluecoats Opening Night Community Celebration", "June 27, 2026", "Alliance, OH"),
 	("Drums Along the Rockies", "June 27, 2026", "Fort Collins, CO"),
 	("Corps Encore", "June 28, 2026", "Ogden, UT"),
-	("Drums Along the Columbia", "June 29, 2026", "Kennewick, WA"),
 	("Northwest Youth Music Games Seattle", "June 30, 2026", "Seattle, WA"),
+	("Drums Along the Columbia", "June 29, 2026", "Kennewick, WA"),
 	("Northwest Youth Music Games Portland", "July 1, 2026", "Portland, OR"),
 	("Drums Across Nebraska", "July 1, 2026", "Omaha, NE"),
 	("Rotary Music Festival", "July 2, 2026", "Cedarburg, WI"),
 	("MidCal Championships", "July 2, 2026", "Oxnard, CA"),
-	("DCI Capital Classic", "July 3, 2026", "Sacramento, CA"),
 	("Show of Shows", "July 3, 2026", "Rockford, IL"),
-	("CrownBEAT", "July 3, 2026", "Lexington, SC"),
-	("River City Rhapsody", "July 5, 2026", "La Crosse, WI"),
+	("DCI Capital Classic", "July 3, 2026", "Sacramento, CA"),
 	("DCI West", "July 5, 2026", "Stanford, CA"),
+	("River City Rhapsody", "July 5, 2026", "La Crosse, WI"),
 	("Drums Across the Smokies", "July 7, 2026", "Sevierville, TN"),
 	("The Kiwanis Thunder of Drums", "July 7, 2026", "Mankato, MN"),
 	("Drums Across America", "July 8, 2026", "Newnan, GA"),
@@ -310,54 +312,56 @@ private let pending = [
 	("Gold Showcase", "July 9, 2026", "Santa Clarita, CA"),
 	("DCI Northern Alabama", "July 9, 2026", "Muscle Shoals, AL"),
 	("Cavalcade of Brass", "July 10, 2026", "Lisle, IL"),
-	("Western Corps Connection", "July 10, 2026", "Walnut, CA"),
 	("Music on the March", "July 10, 2026", "Dubuque, IA"),
-	("DCI Little Rock", "July 11, 2026", "Little Rock, AR"),
+	("Western Corps Connection", "July 10, 2026", "Walnut, CA"),
 	("Drum Corps Grand Prix", "July 11, 2026", "Clifton, NJ"),
-	("Drum Corps at the Rose Bowl", "July 11, 2026", "Pasadena, CA"),
 	("The Whitewater Classic", "July 11, 2026", "Whitewater, WI"),
+	("DCI Little Rock", "July 11, 2026", "Little Rock, AR"),
+	("Drum Corps at the Rose Bowl", "July 11, 2026", "Pasadena, CA"),
 	("So Cal Classic: Open Class Pacific Championship Finals", "July 12, 2026", "Buena Park, CA"),
-	("Drums Across the Desert", "July 13, 2026", "Mesa, AZ"),
 	("Brass Impact", "July 13, 2026", "Olathe, KS"),
-	("DCI New Mexico", "July 14, 2026", "Albuquerque, NM"),
+	("Drums Across the Desert", "July 13, 2026", "Mesa, AZ"),
 	("DCI Broken Arrow", "July 14, 2026", "Broken Arrow, OK"),
 	("DCI Hutchinson", "July 14, 2026", "Hutchinson, KS"),
+	("DCI New Mexico", "July 14, 2026", "Albuquerque, NM"),
 	("DCI Central Texas", "July 16, 2026", "Central, TX"),
 	("DCI Denton", "July 16, 2026", "Denton, TX"),
 	("DCI Houston", "July 17, 2026", "Houston, TX"),
 	("DCI Southwestern Championship", "July 18, 2026", "San Antonio, TX"),
 	("The Buccaneer Classic", "July 18, 2026", "Landisville, PA"),
-	("March On!", "July 18, 2026", "Champlin, MN"),
 	("DCI Dallas", "July 19, 2026", "Bedford, TX"),
 	("DCI McKinney", "July 20, 2026", "McKinney, TX"),
 	("DCI St. Louis", "July 21, 2026", "Belleville, IL"),
-	("DCI Southern Mississippi", "July 22, 2026", "Hattiesburg, MS"),
 	("Drums on the Ohio", "July 22, 2026", "Evansville, IN"),
-	("DCI New York", "July 24, 2026", "Central New York, NY"),
-	("DCI Nashville", "July 24, 2026", "Nashville, TN"),
-	("DCI Birmingham", "July 24, 2026", "Birmingham, AL"),
+	("March On!", "July 22, 2026", "Champlin, MN"),
+	("DCI Southern Mississippi", "July 22, 2026", "Hattiesburg, MS"),
+	("DCI Syracuse", "July 24, 2026", "Central New York, NY"),
 	("Drums on Parade", "July 24, 2026", "Madison, WI"),
+	("DCI Birmingham", "July 24, 2026", "Birmingham, AL"),
+	("DCI Nashville", "July 24, 2026", "Nashville, TN"),
 	("DCI Southeastern Championship", "July 25, 2026", "Atlanta, GA"),
 	("Bushwackers Invitational", "July 25, 2026", "Mt. Olive, NJ"),
 	("Music on the Mountain", "July 25, 2026", "Sheffield, PA"),
-	("DCI in Motion", "July 26, 2026", "Norton, OH"),
+	("Midwestern Championship", "July 26, 2026", "DeKalb, IL"),
 	("NightBEAT", "July 26, 2026", "Winston-Salem, NC"),
-	("Midwest Classic", "July 26, 2026", "DeKalb, IL"),
+	("DCI in Motion", "July 26, 2026", "Norton, OH"),
+	("Summer Music Games in Cincinnati", "July 28, 2026", "Mason, OH"),
 	("DCI Annapolis", "July 28, 2026", "Annapolis, MD"),
 	("Brass at the Beach", "July 28, 2026", "Myrtle Beach, SC"),
-	("Summer Music Games in Cincinnati", "July 28, 2026", "Mason, OH"),
-	("DCI Delaware", "July 29, 2026", "Newark, DE"),
-	("DCI Huntington", "July 29, 2026", "Huntington, WV"),
 	("Summer Music Games of Southwest Virginia", "July 29, 2026", "Salem, VA"),
-	("DCI East Coast Showcase", "July 30, 2026", "Lawrence, MA"),
+	("DCI Huntington", "July 29, 2026", "Huntington, WV"),
 	("The Marion Open", "July 30, 2026", "Marion, OH"),
+	("DCI East Coast Showcase", "July 30, 2026", "Lawrence, MA"),
 	("DCI Eastern Classic", "July 31, 2026", "Allentown, PA"),
 	("DCI Michigan", "July 31, 2026", "Allendale, MI"),
 	("DCI Eastern Classic", "August 1, 2026", "Allentown, PA"),
 	("Big Sounds in Motion", "August 2, 2026", "Downingtown, PA"),
-	("Innovations In Brass", "August 3, 2026", "Northeast, OH"),
 	("DCI World Championship Prelims", "August 6, 2026", "Indianapolis, IN"),
+	("Innovations In Brass", "August 3, 2026", "Northeast, OH"),
 	("DCI All-Age World Championship Prelims", "August 7, 2026", "Indianapolis, IN"),
+	("DCI World Championship Semifinals", "August 7, 2026", "Indianapolis, IN"),
+	("DCI All-Age World Championship Finals", "August 8, 2026", "Indianapolis, IN"),
+	("DCI World Championship Finals", "August 8, 2026", "Indianapolis, IN")
 ]
 
 // 2018-cabs-on-the-beach
