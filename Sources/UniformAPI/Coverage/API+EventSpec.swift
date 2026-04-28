@@ -20,7 +20,22 @@ extension API: EventSpec {
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			for index in 1...71 {
+
+			let eventURLs: [String]
+			if year >= 2026 {
+				let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100")!
+				let (data, _) = try await URLSession.shared.data(from: apiURL)
+				let events = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+				eventURLs = events
+					.compactMap { ($0["link"] as? String).map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 } }
+					.filter { $0.contains("/events/\(year)-") }
+					.sorted()
+					.map { $0 + "/" }
+			} else {
+				eventURLs = []
+			}
+
+			for index in 1...(year >= 2026 ? eventURLs.count : 200) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let idRows: [String]
@@ -28,6 +43,8 @@ extension API: EventSpec {
 				let location: EventSpecifiedFields.EventLocationFields?
 				let show: EventSpecifiedFields.EventShowFields?
 				let circuitName: String
+				let detailsDoc: HTMLDocument?
+
 				if year < 2026 {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -57,12 +74,29 @@ extension API: EventSpec {
 					location = EventSpecifiedFields.EventLocationFields(name: header[2])
 					show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
 					circuitName = header[3]
+					detailsDoc = nil
 				} else {
 					idRows = []
-					let pendingEvent = pending[index - 1]
-					date = try! Date(pendingEvent.1, strategy: formatStyle.parseStrategy)
-					location = EventSpecifiedFields.EventLocationFields(name: pendingEvent.2)
-					show = EventSpecifiedFields.EventShowFields(name: pendingEvent.0, city: location?.city, year: year)
+					let pendingEventURL = URL(string: eventURLs[index - 1])!
+					let html = try String(contentsOf: pendingEventURL, encoding: .utf8)
+					detailsDoc = try? HTML(html: html, encoding: .utf8)
+
+					guard
+						let doc = detailsDoc,
+						let showName = doc.xpath("//div[@class='inner-hero-inner']/h1").first?.text,
+						let fullDateString = doc.xpath("//div[@class='inner-hero-inner']/p").first?.text,
+						let fullLocationString = doc.xpath("//span[@class='location']").first?.text else { continue }
+
+					let dateString = fullDateString
+						.components(separatedBy: " ")
+						.dropFirst()
+						.prefix(3)
+						.joined(separator: " ")
+						.trimmingCharacters(in: .whitespacesAndNewlines)
+					let locationString = fullLocationString.trimmingCharacters(in: .whitespacesAndNewlines)
+					date = try! Date(dateString, strategy: formatStyle.parseStrategy)
+					location = EventSpecifiedFields.EventLocationFields(name: locationString)
+					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
 					circuitName = "DCI"
 				}
 
@@ -72,18 +106,28 @@ extension API: EventSpec {
 
 				let detailsURL: URL?
 				let scoresURL: URL?
-				let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
-				if let slug {
-					slugs[slug, default: 0] += 1
-					let count = slugs[slug]!
-					let eventSlug = count > 1 ? "\(slug)-\(count)" : slug
-					let scoreSlug = Show.scoreSlug(for: eventSlug, in: location?.city, year: year)
+				if year >= 2026 {
+					let eventURL = eventURLs[index - 1]
+					let eventSlug = eventURL
+						.replacingOccurrences(of: "https://www.dci.org/events/\(year)-", with: "")
+						.replacingOccurrences(of: "/", with: "")
 
-					detailsURL = year >= 2019 ? .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/") : nil
-					scoresURL = year >= 2013 ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/") : nil
+					detailsURL = URL(string: eventURL)
+					scoresURL = date <= .init(timeIntervalSince1970: 1782461800 + (2) * 3600 * 24) ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(eventSlug)/") : nil
 				} else {
-					detailsURL = nil
-					scoresURL = nil
+					let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
+					if let slug {
+						slugs[slug, default: 0] += 1
+						let count = slugs[slug]!
+						let eventSlug = count > 1 ? "\(slug)-\(count)" : slug
+						let scoreSlug = Show.scoreSlug(for: eventSlug, in: location?.city, year: year)
+
+						detailsURL = year >= 2019 ? .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/") : nil
+						scoresURL = year >= 2013 ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/") : nil
+					} else {
+						detailsURL = nil
+						scoresURL = nil
+					}
 				}
 
 				let scoreRows: [String]? = if
@@ -140,8 +184,7 @@ extension API: EventSpec {
 
 				if
 					let detailsURL,
-					let html = try? String(contentsOf: detailsURL, encoding: .utf8),
-					let doc = try? HTML(html: html, encoding: .utf8),
+					let doc = detailsDoc,
 					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
 					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
 						.first?
@@ -169,7 +212,7 @@ extension API: EventSpec {
 
 					for id in ids where !id.isEmpty && !id.contains("-") && id != "99999" {
 						let record = switch(id, year) {
-						case ("0", 2025): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
+						case ("0", 2026): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
 						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
 						default: await corpsRecord(id)
 						}
@@ -214,7 +257,12 @@ extension API: EventSpec {
 					validDetailsURL = nil
 				}
 
-				let venueName = addressComponents.count == 3 ? addressComponents[0] : nil
+				let venueName: String? = if addressComponents.count == 3 && addressComponents[1] != "TBA" {
+					addressComponents[0]
+				} else {
+					nil
+				}
+
 				let venue = venueName.map { name in
 					EventSpecifiedFields.EventVenueFields(
 						name: venueName ?? "",
@@ -235,7 +283,7 @@ extension API: EventSpec {
 						time: time,
 						name: name,
 						placement: placements[groupName],
-						isPotentiallyEncore: hasTimes
+						isPotentiallyEncore: false // TODO for 2026 season!!!!!! hasTimes
 					)
 				}
 
@@ -253,9 +301,8 @@ extension API: EventSpec {
 				)
 
 				if let event {
-					// events.append(event)
-					// print(slots)
-					print(event)
+					// print(event)
+					events.append(event)
 				}
 			}
 
@@ -278,6 +325,25 @@ extension API: EventSpec {
 			)
 		)
 	}
+
+	public func updateEvent(with eventID: DrumKit.Event.ID, on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
+		await update(
+			EventInput(
+				date: date,
+				detailsURL: detailsURL,
+				scoresURL: scoresURL,
+				locationID: locationID,
+				circuitID: circuitID,
+				showID: showID,
+				venueID: venueID
+			),
+			with: eventID
+		)
+	}
+
+	public func deleteEvents(with ids: [DrumKit.Event.ID]) async -> Results<DrumKit.Event.ID> {
+		await delete(DrumKit.Event.Identified.self, with: ids)
+	}
 }
 
 // MARK: -
@@ -288,81 +354,6 @@ private extension Array {
 		}
 	}
 }
-
-private let pending = [
-	("DCI Tour Preview", "June 26, 2026", "Muncie, IN"),
-	("Barnum Festival: Champions on Parade", "June 27, 2026", "Shelton, CT"),
-	// ("Bluecoats Opening Night Community Celebration", "June 27, 2026", "Alliance, OH"),
-	("Drums Along the Rockies", "June 27, 2026", "Fort Collins, CO"),
-	("Corps Encore", "June 28, 2026", "Ogden, UT"),
-	("Northwest Youth Music Games Seattle", "June 30, 2026", "Seattle, WA"),
-	("Drums Along the Columbia", "June 29, 2026", "Kennewick, WA"),
-	("Northwest Youth Music Games Portland", "July 1, 2026", "Portland, OR"),
-	("Drums Across Nebraska", "July 1, 2026", "Omaha, NE"),
-	("Rotary Music Festival", "July 2, 2026", "Cedarburg, WI"),
-	("MidCal Championships", "July 2, 2026", "Oxnard, CA"),
-	("Show of Shows", "July 3, 2026", "Rockford, IL"),
-	("DCI Capital Classic", "July 3, 2026", "Sacramento, CA"),
-	("DCI West", "July 5, 2026", "Stanford, CA"),
-	("River City Rhapsody", "July 5, 2026", "La Crosse, WI"),
-	("Drums Across the Smokies", "July 7, 2026", "Sevierville, TN"),
-	("The Kiwanis Thunder of Drums", "July 7, 2026", "Mankato, MN"),
-	("Drums Across America", "July 8, 2026", "Newnan, GA"),
-	("Celebration in Brass", "July 8, 2026", "Ankeny, IA"),
-	("Gold Showcase", "July 9, 2026", "Santa Clarita, CA"),
-	("DCI Northern Alabama", "July 9, 2026", "Muscle Shoals, AL"),
-	("Cavalcade of Brass", "July 10, 2026", "Lisle, IL"),
-	("Music on the March", "July 10, 2026", "Dubuque, IA"),
-	("Western Corps Connection", "July 10, 2026", "Walnut, CA"),
-	("Drum Corps Grand Prix", "July 11, 2026", "Clifton, NJ"),
-	("The Whitewater Classic", "July 11, 2026", "Whitewater, WI"),
-	("DCI Little Rock", "July 11, 2026", "Little Rock, AR"),
-	("Drum Corps at the Rose Bowl", "July 11, 2026", "Pasadena, CA"),
-	("So Cal Classic: Open Class Pacific Championship Finals", "July 12, 2026", "Buena Park, CA"),
-	("Brass Impact", "July 13, 2026", "Olathe, KS"),
-	("Drums Across the Desert", "July 13, 2026", "Mesa, AZ"),
-	("DCI Broken Arrow", "July 14, 2026", "Broken Arrow, OK"),
-	("DCI Hutchinson", "July 14, 2026", "Hutchinson, KS"),
-	("DCI New Mexico", "July 14, 2026", "Albuquerque, NM"),
-	("DCI Central Texas", "July 16, 2026", "Central, TX"),
-	("DCI Denton", "July 16, 2026", "Denton, TX"),
-	("DCI Houston", "July 17, 2026", "Houston, TX"),
-	("DCI Southwestern Championship", "July 18, 2026", "San Antonio, TX"),
-	("The Buccaneer Classic", "July 18, 2026", "Landisville, PA"),
-	("DCI Dallas", "July 19, 2026", "Bedford, TX"),
-	("DCI McKinney", "July 20, 2026", "McKinney, TX"),
-	("DCI St. Louis", "July 21, 2026", "Belleville, IL"),
-	("Drums on the Ohio", "July 22, 2026", "Evansville, IN"),
-	("March On!", "July 22, 2026", "Champlin, MN"),
-	("DCI Southern Mississippi", "July 22, 2026", "Hattiesburg, MS"),
-	("DCI Syracuse", "July 24, 2026", "Central New York, NY"),
-	("Drums on Parade", "July 24, 2026", "Madison, WI"),
-	("DCI Birmingham", "July 24, 2026", "Birmingham, AL"),
-	("DCI Nashville", "July 24, 2026", "Nashville, TN"),
-	("DCI Southeastern Championship", "July 25, 2026", "Atlanta, GA"),
-	("Bushwackers Invitational", "July 25, 2026", "Mt. Olive, NJ"),
-	("Music on the Mountain", "July 25, 2026", "Sheffield, PA"),
-	("Midwestern Championship", "July 26, 2026", "DeKalb, IL"),
-	("NightBEAT", "July 26, 2026", "Winston-Salem, NC"),
-	("DCI in Motion", "July 26, 2026", "Norton, OH"),
-	("Summer Music Games in Cincinnati", "July 28, 2026", "Mason, OH"),
-	("DCI Annapolis", "July 28, 2026", "Annapolis, MD"),
-	("Brass at the Beach", "July 28, 2026", "Myrtle Beach, SC"),
-	("Summer Music Games of Southwest Virginia", "July 29, 2026", "Salem, VA"),
-	("DCI Huntington", "July 29, 2026", "Huntington, WV"),
-	("The Marion Open", "July 30, 2026", "Marion, OH"),
-	("DCI East Coast Showcase", "July 30, 2026", "Lawrence, MA"),
-	("DCI Eastern Classic", "July 31, 2026", "Allentown, PA"),
-	("DCI Michigan", "July 31, 2026", "Allendale, MI"),
-	("DCI Eastern Classic", "August 1, 2026", "Allentown, PA"),
-	("Big Sounds in Motion", "August 2, 2026", "Downingtown, PA"),
-	("DCI World Championship Prelims", "August 6, 2026", "Indianapolis, IN"),
-	("Innovations In Brass", "August 3, 2026", "Northeast, OH"),
-	("DCI All-Age World Championship Prelims", "August 7, 2026", "Indianapolis, IN"),
-	("DCI World Championship Semifinals", "August 7, 2026", "Indianapolis, IN"),
-	("DCI All-Age World Championship Finals", "August 8, 2026", "Indianapolis, IN"),
-	("DCI World Championship Finals", "August 8, 2026", "Indianapolis, IN")
-]
 
 // 2018-cabs-on-the-beach
 // 2018-sounds-on-the-susquehanna
@@ -388,7 +379,7 @@ private let pending = [
 // 2018-drum-corps-united-kingdom-open-prelims
 // 2018-drum-corps-united-kingdom-finals
 
-// Add exhibitions from DCX that are not on DCI Scores as 0.0 (2013 – 2025)
+// Add exhibitions from DCX that are not on DCI Scores as 0.0 (2013 – 2026)
 // This is manual each time
 
 // Check all numeric-suffixed show slugs

@@ -9,7 +9,7 @@ import protocol Catena.ResultProviding
 import protocol UniformService.PerformanceSpec
 
 extension API: PerformanceSpec {
-	public func createPerformance(byCorpsWith corpsID: Corps.ID?, ensembleWith ensembleID: Ensemble.ID?, inPlacementWith placementID: Placement.ID?) async -> SingleResult<Performance.ID> {
+	public func createPerformance(byCorpsWith corpsID: Corps.ID?, ensembleWith ensembleID: Ensemble.ID?, toPlacementWith placementID: Placement.ID?) async -> SingleResult<Performance.ID> {
 		await insert(
 			PerformanceInput(
 				corpsID: corpsID,
@@ -17,5 +17,13 @@ extension API: PerformanceSpec {
 				placementID: placementID
 			)
 		)
+	}
+
+	public func updatePerformance(with id: Performance.ID, toPlacementWith placementID: Placement.ID) async -> SingleResult<Performance.ID> {
+		await update(PerformanceInput(placementID: placementID), with: id)
+	}
+
+	public func deletePerformances(with ids: [Performance.ID]) async -> Results<Performance.ID> {
+		await delete(Performance.Identified.self, with: ids)
 	}
 }

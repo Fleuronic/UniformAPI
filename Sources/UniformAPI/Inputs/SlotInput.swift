@@ -8,18 +8,32 @@ import protocol Caesura.Input
 
 struct SlotInput {
 	let time: Time?
-	let eventID: Event.ID
+	let eventID: Event.ID?
 	let performanceID: Performance.ID?
 	let featureID: Feature.ID?
+
+	// TODO
+	init(
+		time: Time?,
+		eventID: Event.ID? = nil,
+		performanceID: Performance.ID? = nil,
+		featureID: Feature.ID? = nil
+	) {
+		self.time = time
+		self.eventID = eventID
+		self.performanceID = performanceID
+		self.featureID = featureID
+	}
 }
 
 extension SlotInput: Input {
 	typealias ID = Slot.ID
 
 	var valueSet: ValueSet<Slot.Identified> {
-		var valueSet: ValueSet<Slot.Identified> = [\.event == eventID]
+		var valueSet: ValueSet<Slot.Identified> = []
 
 		time.map { valueSet = valueSet.update(with: [\.value.time == $0]) }
+		eventID.map { valueSet = valueSet.update(with: [\.event == $0]) }
 		performanceID.map { valueSet = valueSet.update(with: [\.performance == $0]) }
 		featureID.map { valueSet = valueSet.update(with: [\.feature == $0]) }
 

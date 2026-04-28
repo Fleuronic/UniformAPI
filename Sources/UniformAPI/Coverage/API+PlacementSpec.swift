@@ -16,4 +16,14 @@ extension API: PlacementSpec {
 			)
 		)
 	}
+
+	public func updatePlacement(with placementID: Placement.ID, at rank: Int, with score: Double) async -> SingleResult<Placement.ID> {
+		await update(
+			PlacementInput(
+				rank: rank,
+				score: score
+			),
+			with: placementID
+		)
+	}
 }

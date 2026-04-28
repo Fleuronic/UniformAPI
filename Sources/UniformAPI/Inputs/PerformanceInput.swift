@@ -9,6 +9,17 @@ struct PerformanceInput {
 	let corpsID: Corps.ID?
 	let ensembleID: Ensemble.ID?
 	let placementID: Placement.ID?
+
+	// TODO
+	init(
+		corpsID: Corps.ID? = nil,
+		ensembleID: Ensemble.ID? = nil,
+		placementID: Placement.ID?
+	) {
+		self.corpsID = corpsID
+		self.ensembleID = ensembleID
+		self.placementID = placementID
+	}
 }
 
 extension PerformanceInput: Input {

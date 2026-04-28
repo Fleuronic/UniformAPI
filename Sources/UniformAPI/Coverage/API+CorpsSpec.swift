@@ -11,12 +11,11 @@ import protocol Catena.ResultProviding
 import protocol UniformService.CorpsSpec
 
 extension API: CorpsSpec {
-
 	public func listCorps() async -> Results<CorpsSpecifiedFields> {
 		do {
 			let url = URL(string: "https://www.dcxmuseum.org/corps.cfm")!
 			let html = try String(contentsOf: url, encoding: .utf8)
-			let doc = try HTML(html: html, encoding: .utf8) 
+			let doc = try HTML(html: html, encoding: .utf8)
 			let corps = doc.xpath("//tr").map { element in
 				element.xpath("td").flatMap { element in
 					if let anchor = (element.xpath("a").first) {
