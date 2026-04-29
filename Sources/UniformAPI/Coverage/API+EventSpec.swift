@@ -14,28 +14,67 @@ import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
 
 extension API: EventSpec {
-	public func listEvents(for year: Int, with corpsRecord: (String) async -> String) async -> Results<EventSpecifiedFields> {
+	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
+		let eventURLs = await eventURLs(for: year)
+		return await listEvents(for: year, with: eventURLs, with: corpsRecord)
+	}
+
+	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
+		await insert(
+			EventInput(
+				date: date,
+				detailsURL: detailsURL,
+				scoresURL: scoresURL,
+				locationID: locationID,
+				circuitID: circuitID,
+				showID: showID,
+				venueID: venueID
+			)
+		)
+	}
+
+	public func updateEvent(with eventID: DrumKit.Event.ID, on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
+		await update(
+			EventInput(
+				date: date,
+				detailsURL: detailsURL,
+				scoresURL: scoresURL,
+				locationID: locationID,
+				circuitID: circuitID,
+				showID: showID,
+				venueID: venueID
+			),
+			with: eventID
+		)
+	}
+
+	public func deleteEvents(with ids: [DrumKit.Event.ID]) async -> Results<DrumKit.Event.ID> {
+		await delete(DrumKit.Event.Identified.self, with: ids)
+	}
+}
+
+// MARK: -
+private extension API {
+	func eventURLs(for year: Int) async -> [URL]? {
+		guard year >= 2019 else { return nil }
+
+		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100")!
+		let (data, _) = try! await URLSession.shared.data(from: apiURL)
+		let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+		return events
+			.compactMap { ($0["link"] as? String).map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 } }
+			.filter { $0.contains("/events/\(year)-") }
+			.sorted()
+			.compactMap { URL(string: $0 + "/") }
+	}
+
+	func listEvents(for year: Int, with urls: [URL]?, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
 		do {
 			var events: [EventSpecifiedFields] = []
-
-			let eventURLs: [String]
-			if year >= 2026 {
-				let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100")!
-				let (data, _) = try await URLSession.shared.data(from: apiURL)
-				let events = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
-				eventURLs = events
-					.compactMap { ($0["link"] as? String).map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 } }
-					.filter { $0.contains("/events/\(year)-") }
-					.sorted()
-					.map { $0 + "/" }
-			} else {
-				eventURLs = []
-			}
-
-			for index in 1...(year >= 2026 ? eventURLs.count : 200) {
+			for index in 1...(urls?.count ?? 200) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let idRows: [String]
@@ -45,7 +84,7 @@ extension API: EventSpec {
 				let circuitName: String
 				let detailsDoc: HTMLDocument?
 
-				if year < 2026 {
+				if urls == nil {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
 						case let html = try String(contentsOf: url, encoding: .utf8),
@@ -77,7 +116,7 @@ extension API: EventSpec {
 					detailsDoc = nil
 				} else {
 					idRows = []
-					let pendingEventURL = URL(string: eventURLs[index - 1])!
+					let pendingEventURL = urls![index - 1]
 					let html = try String(contentsOf: pendingEventURL, encoding: .utf8)
 					detailsDoc = try? HTML(html: html, encoding: .utf8)
 
@@ -106,14 +145,14 @@ extension API: EventSpec {
 
 				let detailsURL: URL?
 				let scoresURL: URL?
-				if year >= 2026 {
-					let eventURL = eventURLs[index - 1]
-					let eventSlug = eventURL
+				if let urls {
+					detailsURL = urls[index - 1]
+					let eventSlug = detailsURL!
+						.absoluteString
 						.replacingOccurrences(of: "https://www.dci.org/events/\(year)-", with: "")
 						.replacingOccurrences(of: "/", with: "")
 
-					detailsURL = URL(string: eventURL)
-					scoresURL = date <= .init(timeIntervalSince1970: 1782461800 + (2) * 3600 * 24) ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(eventSlug)/") : nil
+					scoresURL = date <= .init() ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(eventSlug)/") : nil
 				} else {
 					let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
 					if let slug {
@@ -214,7 +253,7 @@ extension API: EventSpec {
 						let record = switch(id, year) {
 						case ("0", 2026): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
 						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
-						default: await corpsRecord(id)
+						default: await corpsRecord!(id)
 						}
 
 						let name = record.components(separatedBy: " - ")[0]
@@ -247,7 +286,7 @@ extension API: EventSpec {
 					}
 
 					for corps in corps {
-						let record = await corpsRecord(corps)
+						let record = await corpsRecord!(corps)
 						if record.contains(" ,") || record.hasSuffix(" ") { fatalError() }
 						slotRows += ["", record]
 					}
@@ -310,39 +349,6 @@ extension API: EventSpec {
 		} catch {
 			return .failure(.network(error as NSError))
 		}
-	}
-
-	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
-		await insert(
-			EventInput(
-				date: date,
-				detailsURL: detailsURL,
-				scoresURL: scoresURL,
-				locationID: locationID,
-				circuitID: circuitID,
-				showID: showID,
-				venueID: venueID
-			)
-		)
-	}
-
-	public func updateEvent(with eventID: DrumKit.Event.ID, on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
-		await update(
-			EventInput(
-				date: date,
-				detailsURL: detailsURL,
-				scoresURL: scoresURL,
-				locationID: locationID,
-				circuitID: circuitID,
-				showID: showID,
-				venueID: venueID
-			),
-			with: eventID
-		)
-	}
-
-	public func deleteEvents(with ids: [DrumKit.Event.ID]) async -> Results<DrumKit.Event.ID> {
-		await delete(DrumKit.Event.Identified.self, with: ids)
 	}
 }
 
