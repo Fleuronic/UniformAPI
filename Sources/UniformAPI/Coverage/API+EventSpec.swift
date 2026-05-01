@@ -14,6 +14,13 @@ import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
 
 extension API: EventSpec {
+	public func listEvents(with urls: [URL]) async -> Results<EventSpecifiedFields> {
+		guard !urls.isEmpty else { return .success([]) }
+
+		let currentYear = Calendar.current.component(.year, from: .init())
+		return await listEvents(for: currentYear, with: urls)
+	}
+
 	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		let eventURLs = await eventURLs(for: year)
 		return await listEvents(for: year, with: eventURLs, with: corpsRecord)
@@ -68,7 +75,7 @@ private extension API {
 			.compactMap { URL(string: $0 + "/") }
 	}
 
-	func listEvents(for year: Int, with urls: [URL]?, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
+	func listEvents(for year: Int, with urls: [URL]?, with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year()
 
@@ -84,6 +91,7 @@ private extension API {
 				let circuitName: String
 				let detailsDoc: HTMLDocument?
 
+				var scoresURL: URL?
 				if urls == nil {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -115,8 +123,18 @@ private extension API {
 					circuitName = header[3]
 					detailsDoc = nil
 				} else {
-					idRows = []
 					let pendingEventURL = urls![index - 1]
+					scoresURL = URL(string: pendingEventURL.absoluteString.replacingOccurrences(of: "/events/", with: "/scores/final-scores/"))
+
+					if corpsRecord == nil {
+						var request = URLRequest(url: scoresURL!)
+						request.httpMethod = "HEAD"
+
+						let (_, response) = try await URLSession.shared.data(for: request)
+						if (response as! HTTPURLResponse).statusCode == 404 { continue }
+					}
+
+					idRows = []
 					let html = try String(contentsOf: pendingEventURL, encoding: .utf8)
 					detailsDoc = try? HTML(html: html, encoding: .utf8)
 
@@ -134,6 +152,10 @@ private extension API {
 						.trimmingCharacters(in: .whitespacesAndNewlines)
 					let locationString = fullLocationString.trimmingCharacters(in: .whitespacesAndNewlines)
 					date = try! Date(dateString, strategy: formatStyle.parseStrategy)
+
+					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 59))
+					if corpsRecord != nil && date > currentDate { scoresURL = nil }
+
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
 					circuitName = "DCI"
@@ -144,15 +166,8 @@ private extension API {
 					Show.isValid(with: show?.name) else { continue }
 
 				let detailsURL: URL?
-				let scoresURL: URL?
 				if let urls {
 					detailsURL = urls[index - 1]
-					let eventSlug = detailsURL!
-						.absoluteString
-						.replacingOccurrences(of: "https://www.dci.org/events/\(year)-", with: "")
-						.replacingOccurrences(of: "/", with: "")
-
-					scoresURL = date <= .init() ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(eventSlug)/") : nil
 				} else {
 					let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
 					if let slug {
