@@ -22,7 +22,8 @@ extension API: EventSpec {
 	}
 
 	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
-		let eventURLs = await eventURLs(for: year)
+		guard let eventURLs = try? await eventURLs(for: year) else { return .success([]) }
+
 		return await listEvents(for: year, with: eventURLs, with: corpsRecord)
 	}
 
@@ -62,14 +63,18 @@ extension API: EventSpec {
 
 // MARK: -
 private extension API {
-	func eventURLs(for year: Int) async -> [URL]? {
+	func eventURLs(for year: Int) async throws -> [URL]? {
 		guard year >= 2019 else { return nil }
 
-		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100")!
-		let (data, _) = try! await URLSession.shared.data(from: apiURL)
-		let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
-		return events
-			.compactMap { ($0["link"] as? String).map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 } }
+		let links = try await (1...7).asyncMap { page -> [String] in
+			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
+			let (data, _) = try await URLSession.shared.data(from: apiURL)
+			let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+			return events.compactMap { $0["link"] as? String }
+		}.flatMap { $0 }
+
+		return links
+			.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
 			.filter { $0.contains("/events/\(year)-") }
 			.sorted()
 			.compactMap { URL(string: $0 + "/") }
@@ -124,7 +129,8 @@ private extension API {
 					detailsDoc = nil
 				} else {
 					let pendingEventURL = urls![index - 1]
-					scoresURL = URL(string: pendingEventURL.absoluteString.replacingOccurrences(of: "/events/", with: "/scores/final-scores/"))
+					let eventSlug = pendingEventURL.lastPathComponent
+					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
 					if corpsRecord == nil {
 						var request = URLRequest(url: scoresURL!)
@@ -153,12 +159,18 @@ private extension API {
 					let locationString = fullLocationString.trimmingCharacters(in: .whitespacesAndNewlines)
 					date = try! Date(dateString, strategy: formatStyle.parseStrategy)
 
-					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 59))
-					if corpsRecord != nil && date > currentDate { scoresURL = nil }
+					let startOfDate = Calendar.current.startOfDay(for: date)
+					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 63))
+					let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
+					if corpsRecord != nil && startOfDate >= startOfCurrentDate { scoresURL = nil }
 
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
 					circuitName = "DCI"
+
+					let slug = eventSlug.components(separatedBy: "-").dropFirst().joined(separator: "-")
+					let scoreSlug = Show.scoreSlug(for: slug, in: location?.city, year: year)
+					scoresURL = scoresURL.map { _ in URL(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")! }
 				}
 
 				guard
