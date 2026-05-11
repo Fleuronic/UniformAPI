@@ -246,7 +246,6 @@ private extension API {
 				var slotRows: [String] = []
 				let addressComponents: [String]
 				let timeZone: String
-				let validDetailsURL: URL?
 
 				if
 					let detailsURL,
@@ -263,7 +262,6 @@ private extension API {
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 						.filter { !$0.isEmpty })
 					timeZone = tableHeader.components(separatedBy: " ")[2]
-					validDetailsURL = detailsURL
 				} else {
 					let corps = placements.keys + exhibitionCorps
 					let hasPictures =
@@ -320,7 +318,6 @@ private extension API {
 
 					addressComponents = []
 					timeZone = "GMT"
-					validDetailsURL = nil
 				}
 
 				let venueName: String? = if addressComponents.count == 3 && addressComponents[1] != "TBA" {
@@ -356,7 +353,7 @@ private extension API {
 				let event = EventSpecifiedFields(
 					id: id,
 					date: date,
-					detailsURL: validDetailsURL,
+					detailsURL: detailsURL,
 					scoresURL: validScoresURL,
 					timeZone: timeZone,
 					location: location,
