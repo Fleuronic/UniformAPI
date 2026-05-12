@@ -22,8 +22,7 @@ extension API: EventSpec {
 	}
 
 	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
-		guard let eventURLs = try? await eventURLs(for: year) else { return .success([]) }
-
+		let eventURLs = try? await eventURLs(for: year)
 		return await listEvents(for: year, with: eventURLs, with: corpsRecord)
 	}
 
@@ -64,7 +63,7 @@ extension API: EventSpec {
 // MARK: -
 private extension API {
 	func eventURLs(for year: Int) async throws -> [URL]? {
-		guard year >= 2019 else { return nil }
+		guard year >= 2024 else { return nil }
 
 		let links = try await (1...7).asyncMap { page -> [String] in
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
@@ -249,7 +248,7 @@ private extension API {
 
 				if
 					let detailsURL,
-					let doc = detailsDoc,
+					let doc = detailsDoc ?? (try? HTML(html: String(contentsOf: detailsURL, encoding: .utf8), encoding: .utf8)),
 					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
 					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
 						.first?
@@ -364,7 +363,6 @@ private extension API {
 				)
 
 				if let event {
-					// print(event)
 					events.append(event)
 				}
 			}
