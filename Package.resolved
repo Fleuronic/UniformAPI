@@ -2,12 +2,21 @@
   "originHash" : "4982f05c7d0d2890685ba1058bd06ed3bcb6f916b54d5d306598285db4b52625",
   "pins" : [
     {
+      "identity" : "caesura",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/Caesura",
+      "state" : {
+        "branch" : "main",
+        "revision" : "ac0d10832d22933cdb97f8900a0eb6ff7b5e1d2d"
+      }
+    },
+    {
       "identity" : "catena",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fleuronic/Catena",
       "state" : {
         "branch" : "main",
-        "revision" : "a856acd87172d24630cb9c3950de724d4df6312a"
+        "revision" : "912d76affb31853b78473715ee453e49f975ee0b"
       }
     },
     {
@@ -16,7 +25,7 @@
       "location" : "https://github.com/Fleuronic/Catenary",
       "state" : {
         "branch" : "main",
-        "revision" : "90797585c762fd22505be4bcc9ebbb55f92c3fb7"
+        "revision" : "7537f38a248d685ca9e9f978d081dd2550be46bf"
       }
     },
     {
@@ -25,7 +34,7 @@
       "location" : "https://github.com/Fleuronic/Catenoid",
       "state" : {
         "branch" : "main",
-        "revision" : "286cf310d8c9fbd00dfea46baf49cd6de3fdf393"
+        "revision" : "431758293b1ccfa00cee15d4bba512f668c1bb2a"
       }
     },
     {
@@ -38,9 +47,27 @@
       }
     },
     {
+      "identity" : "drumkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/DrumKit",
+      "state" : {
+        "branch" : "main",
+        "revision" : "c8d4901a31885e218842fca12ecdb886a50800bd"
+      }
+    },
+    {
+      "identity" : "drumkitservice",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Fleuronic/DrumKitService",
+      "state" : {
+        "branch" : "main",
+        "revision" : "10c18eed3085d8d6f5f358ec5a2d1ee6594228f4"
+      }
+    },
+    {
       "identity" : "identity",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JohnSundell/Identity",
+      "location" : "https://github.com/jordanekay/Identity",
       "state" : {
         "branch" : "master",
         "revision" : "ff9dfdf4df87ff0d7064d40bdc230c5e55f0bcbf"
@@ -56,12 +83,21 @@
       }
     },
     {
+      "identity" : "papyrus",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jordanekay/papyrus",
+      "state" : {
+        "branch" : "main",
+        "revision" : "ff604d6cca47a31a3e27588f6c5c155664175cb2"
+      }
+    },
+    {
       "identity" : "persistdb",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jordanekay/PersistDB",
       "state" : {
         "branch" : "master",
-        "revision" : "1fcce3a2e8d5ff8dcd52ab60a743bc0fb9f06c78"
+        "revision" : "75c77914db0f316b2d7269b8521b4226900d812d"
       }
     },
     {
@@ -79,7 +115,7 @@
       "location" : "https://github.com/jordanekay/Schemata",
       "state" : {
         "branch" : "master",
-        "revision" : "1c5443b01cd2fb9f25e63197cfe35b96ba9bd2fc"
+        "revision" : "776426b83cf9f11d9a88923388866f36504fda26"
       }
     },
     {
@@ -92,12 +128,30 @@
       }
     },
     {
+      "identity" : "swift-memberwise-init-macro",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gohanlon/swift-memberwise-init-macro",
+      "state" : {
+        "revision" : "d0fb82bb6638051524214fb54524bfcd876735a1",
+        "version" : "0.6.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    },
+    {
       "identity" : "uniform",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "bbfce81213f0190344488bb79b310c7f561ae567"
+        "revision" : "e9ebca3d1031a47f58ddb8ceac99c0c06e98ccd0"
       }
     },
     {
@@ -106,7 +160,7 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "8b80eb3c45509b491a3b8db97d636cef10b1178f"
+        "revision" : "0defb37913d6d26ce443cd4a9a328f2afce4f845"
       }
     }
   ],

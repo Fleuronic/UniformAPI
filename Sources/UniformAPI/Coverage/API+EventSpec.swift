@@ -335,13 +335,13 @@ private extension API {
 				}
 
 				let hasTimes = timeZone != "GMT"
-				let slots = slotRows.chunked(into: 2).map { row in
+				let slots = slotRows.chunked(into: 2).compactMap { row in
 					let time = row[0]
 					let name = row[1]
 					let record = name.components(separatedBy: " - ")[0]
 					let groupName = Placement.groupName(for: record)
 
-					return EventSpecifiedFields.EventSlotFields(
+					return hasTimes && time.isEmpty ? nil : EventSpecifiedFields.EventSlotFields(
 						time: time,
 						name: name,
 						placement: placements[groupName],
@@ -363,7 +363,8 @@ private extension API {
 				)
 
 				if let event {
-					events.append(event)
+					print(event)
+					// events.append(event)
 				}
 			}
 
