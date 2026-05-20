@@ -85,7 +85,7 @@ private extension API {
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			for index in 1...(urls?.count ?? 200) {
+			for index in 1...(urls?.count ?? 350) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let idRows: [String]
@@ -124,7 +124,7 @@ private extension API {
 					date = try! Date(header[1], strategy: formatStyle.parseStrategy)
 					location = EventSpecifiedFields.EventLocationFields(name: header[2])
 					show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
-					circuitName = header[3]
+					circuitName = header[3].isEmpty ? (show?.name == "Sounds of Minnesota" ? "DCA" : "DCI") : header[3]
 					detailsDoc = nil
 				} else {
 					let pendingEventURL = urls![index - 1]
@@ -159,9 +159,9 @@ private extension API {
 					date = try! Date(dateString, strategy: formatStyle.parseStrategy)
 
 					let startOfDate = Calendar.current.startOfDay(for: date)
-					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 63))
+					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 49))
 					let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
-					if corpsRecord != nil && startOfDate >= startOfCurrentDate { scoresURL = nil }
+					if corpsRecord != nil && startOfDate > startOfCurrentDate { scoresURL = nil }
 
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
@@ -181,7 +181,7 @@ private extension API {
 					detailsURL = urls[index - 1]
 				} else {
 					let slug = (show?.name).flatMap { Show.slug(forShowNamed: $0, in: year) }
-					if let slug {
+					if let slug, circuitName == "DCI" {
 						slugs[slug, default: 0] += 1
 						let count = slugs[slug]!
 						let eventSlug = count > 1 ? "\(slug)-\(count)" : slug
@@ -212,7 +212,7 @@ private extension API {
 				var divisionName: String? = nil
 				var exhibitionCorps: [String] = []
 				var placements: [String: EventSpecifiedFields.EventSlotFields.SlotPlacementFields] = [:]
-				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? circuitName : "DCI")
+				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? (circuitName == "SoundSport" ? "DCI" : circuitName) : "DCI")
 
 				let validScoresURL: URL?
 				if let scoreRows {
@@ -289,7 +289,7 @@ private extension API {
 								.last!
 								.offset
 
-							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? idRows[index - 2]
+							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World")) : idRows[index - 2])
 							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
@@ -334,19 +334,22 @@ private extension API {
 					)
 				}
 
-				let hasTimes = timeZone != "GMT"
-				let slots = slotRows.chunked(into: 2).compactMap { row in
+				let chunks = slotRows.chunked(into: 2)
+				let hasTimes = chunks.allSatisfy { !$0[0].isEmpty }
+				let slots = chunks.compactMap { row in
 					let time = row[0]
 					let name = row[1]
 					let record = name.components(separatedBy: " - ")[0]
 					let groupName = Placement.groupName(for: record)
 
-					return hasTimes && time.isEmpty ? nil : EventSpecifiedFields.EventSlotFields(
+					let slot = EventSpecifiedFields.EventSlotFields(
 						time: time,
 						name: name,
 						placement: placements[groupName],
-						isPotentiallyEncore: false // TODO for 2026 season!!!!!! hasTimes
+						isPotentiallyEncore: hasTimes
 					)
+
+					return slot.feature == nil && hasTimes && time.isEmpty ? nil : slot
 				}
 
 				let event = EventSpecifiedFields(
@@ -363,8 +366,8 @@ private extension API {
 				)
 
 				if let event {
-					print(event)
-					// events.append(event)
+					// print(event)
+					events.append(event)
 				}
 			}
 
