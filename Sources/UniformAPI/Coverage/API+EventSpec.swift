@@ -2,6 +2,9 @@
 
 import Kanna
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Uniform
 import struct DrumKit.Event
 import struct DrumKit.Feature
