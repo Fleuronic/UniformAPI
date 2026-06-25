@@ -71,7 +71,7 @@ private extension API {
 
 		let links = try await (1...7).asyncMap { page -> [String] in
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
-			let (data, _) = try await URLSession.shared.data(from: apiURL)
+			let (data, _) = try await scraperSession.data(from: apiURL)
 			let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
 			return events.compactMap { $0["link"] as? String }
 		}.flatMap { $0 }
@@ -105,7 +105,7 @@ private extension API {
 				if urls == nil {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
-						case let html = try String(contentsOf: url, encoding: .utf8),
+						case let html = try await scraperSession.string(from: url),
 						let doc = try? HTML(html: html, encoding: .utf8),
 						let header = (doc.xpath("//th[1]")
 							.first?
@@ -141,12 +141,12 @@ private extension API {
 						var request = URLRequest(url: scoresURL!)
 						request.httpMethod = "HEAD"
 
-						let (_, response) = try await URLSession.shared.data(for: request)
+						let (_, response) = try await scraperSession.data(for: request)
 						if (response as! HTTPURLResponse).statusCode == 404 { continue }
 					}
 
 					idRows = []
-					let html = try String(contentsOf: pendingEventURL, encoding: .utf8)
+					let html = try await scraperSession.string(from: pendingEventURL)
 					detailsDoc = try? HTML(html: html, encoding: .utf8)
 
 					guard
@@ -206,7 +206,7 @@ private extension API {
 				let scoreRows: [String]? = if
 					date < .init(),
 					let scoresURL,
-					let html = try? String(contentsOf: scoresURL, encoding: .utf8),
+					let html = try? await scraperSession.string(from: scoresURL),
 					let doc = try? HTML(html: html, encoding: .utf8) {
 					doc
 						.xpath("//div[@class='score-tbl responsive-tbl finalscores']")
@@ -255,9 +255,15 @@ private extension API {
 				let addressComponents: [String]
 				let timeZone: String
 
+				let detailsHTML: String?
+				if detailsDoc == nil, let detailsURL {
+					detailsHTML = try? await scraperSession.string(from: detailsURL)
+				} else {
+					detailsHTML = nil
+				}
 				if
 					let detailsURL,
-					let doc = detailsDoc ?? (try? HTML(html: String(contentsOf: detailsURL, encoding: .utf8), encoding: .utf8)),
+					let doc = detailsDoc ?? detailsHTML.flatMap({ try? HTML(html: $0, encoding: .utf8) }),
 					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
 					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
 						.first?

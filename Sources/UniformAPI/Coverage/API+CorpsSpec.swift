@@ -14,7 +14,7 @@ extension API: CorpsSpec {
 	public func listCorps() async -> Results<CorpsSpecifiedFields> {
 		do {
 			let url = URL(string: "https://www.dcxmuseum.org/corps.cfm")!
-			let html = try String(contentsOf: url, encoding: .utf8)
+			let html = try await scraperSession.string(from: url)
 			let doc = try HTML(html: html, encoding: .utf8)
 			let corps = doc.xpath("//tr").map { element in
 				element.xpath("td").flatMap { element in
