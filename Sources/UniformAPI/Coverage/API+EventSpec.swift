@@ -85,7 +85,7 @@ private extension API {
 
 	func listEvents(for year: Int, with urls: [URL]?, with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
-		let formatStyle = Date.FormatStyle().month(.wide).day().year()
+		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
 
 		do {
 			var events: [EventSpecifiedFields] = []
