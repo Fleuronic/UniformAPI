@@ -72,9 +72,7 @@ private extension API {
 		let links = try await (1...7).asyncMap(mode: .serial) { page -> [String] in
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
 			let (data, _) = try await scraperSession.data(from: apiURL)
-			guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-				throw URLError(.cannotParseResponse)
-			}
+			guard let events = try! JSONSerialization.jsonObject(with: data) as? [[String: Any]]
 			return events.compactMap { $0["link"] as? String }
 		}.flatMap { $0 }
 
