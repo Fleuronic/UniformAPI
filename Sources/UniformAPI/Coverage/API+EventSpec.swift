@@ -69,7 +69,7 @@ private extension API {
 	func eventURLs(for year: Int) async throws -> [URL]? {
 		guard year >= 2024 else { return nil }
 
-		let links = try await (1...7).asyncMap { page -> [String] in
+		let links = try await (1...7).asyncMap(mode: .serial) { page -> [String] in
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
 			let (data, _) = try await scraperSession.data(from: apiURL)
 			guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
