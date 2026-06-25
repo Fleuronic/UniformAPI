@@ -4,6 +4,7 @@ import Kanna
 import Foundation
 import Uniform
 import struct DrumKit.Event
+import struct DrumKit.Feature
 import struct DrumKit.Location
 import struct DrumKit.Circuit
 import struct DrumKit.Show
@@ -85,6 +86,8 @@ private extension API {
 
 		do {
 			var events: [EventSpecifiedFields] = []
+			// let x = urls!.lastIndex { $0.absoluteString.contains("world-championship-finals") }! + 1
+			// for index in x...x {
 			for index in 1...(urls?.count ?? 350) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
@@ -167,9 +170,11 @@ private extension API {
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
 					circuitName = "DCI"
 
-					let slug = eventSlug.components(separatedBy: "-").dropFirst().joined(separator: "-")
-					let scoreSlug = Show.scoreSlug(for: slug, in: location?.city, year: year)
-					scoresURL = scoresURL.map { _ in URL(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")! }
+					if scoresURL == nil {
+						let slug = eventSlug.components(separatedBy: "-").dropFirst().joined(separator: "-")
+						let scoreSlug = Show.scoreSlug(for: slug, in: location?.city, year: year)
+						scoresURL = scoresURL.map { _ in URL(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")! }
+					}
 				}
 
 				guard
@@ -196,6 +201,7 @@ private extension API {
 				}
 
 				let scoreRows: [String]? = if
+					date < .init(),
 					let scoresURL,
 					let html = try? String(contentsOf: scoresURL, encoding: .utf8),
 					let doc = try? HTML(html: html, encoding: .utf8) {
@@ -336,7 +342,16 @@ private extension API {
 
 				let chunks = slotRows.chunked(into: 2)
 				let hasTimes = chunks.allSatisfy { !$0[0].isEmpty }
-				let slots = chunks.compactMap { row in
+
+				let timedGroups: Set<String> = Set(chunks.compactMap { row in
+					let time = row[0]
+					guard !time.isEmpty else { return nil }
+					let record = row[1].components(separatedBy: " - ")[0]
+					guard Feature.name(for: record) == nil else { return nil }
+					return Placement.groupName(for: record)
+				})
+
+				let slots = chunks.compactMap { row -> EventSpecifiedFields.EventSlotFields? in
 					let time = row[0]
 					let name = row[1]
 					let record = name.components(separatedBy: " - ")[0]
@@ -349,7 +364,10 @@ private extension API {
 						isPotentiallyEncore: hasTimes
 					)
 
-					return slot.feature == nil && hasTimes && time.isEmpty ? nil : slot
+					if slot.feature == nil && hasTimes && time.isEmpty { return nil }
+					if slot.feature == nil && time.isEmpty && timedGroups.contains(groupName) { return nil }
+
+					return slot
 				}
 
 				let event = EventSpecifiedFields(
