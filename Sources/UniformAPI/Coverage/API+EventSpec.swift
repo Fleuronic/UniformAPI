@@ -77,18 +77,15 @@ private extension API {
 	func eventModifications(for year: Int) async throws -> [URL: String] {
 		guard year >= 2024 else { return [:] }
 
-		let modifications = try await (1...7).asyncMap(mode: .serial) { page -> [(String, String)] in
-			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
-			let (data, _) = try await scraperSession.data(from: apiURL)
-			let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
-			return events.compactMap { event in
+		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&orderby=modified&order=desc")!
+		let (data, _) = try await scraperSession.data(from: apiURL)
+		let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+
+		let keys = events
+			.compactMap { event -> (String, String)? in
 				guard let link = event["link"] as? String, let modified = event["modified_gmt"] as? String else { return nil }
 				return (link, modified)
 			}
-		}
-
-		let keys = modifications
-			.flatMap { $0 }
 			.map { ($0.0.hasSuffix("/") ? String($0.0.dropLast()) : $0.0, $0.1) }
 			.filter { $0.0.contains("/events/\(year)-") }
 			.compactMap { link, modified in URL(string: link + "/").map { ($0, modified) } }
