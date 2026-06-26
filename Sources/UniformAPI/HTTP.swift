@@ -5,12 +5,13 @@ import Foundation
 import FoundationNetworking
 #endif
 
-// Shared scraper session that identifies itself via a descriptive User-Agent
-// and throttles every request to at least one second apart, with a randomized
-// jitter so the cadence is not perfectly periodic (a pattern WAFs can learn to
-// flag). Implemented as an actor so concurrent callers are serialized and each
-// request reserves a distinct, jittered slot, avoiding the request bursts that
-// WAFs flag as suspicious activity.
+// Shared scraper session that presents a browser-like User-Agent (dci.org's
+// Cloudflare bot protection 403s non-browser User-Agents) and throttles every
+// request to at least one second apart, with a randomized jitter so the cadence
+// is not perfectly periodic (a pattern WAFs can learn to flag). Implemented as
+// an actor so concurrent callers are serialized and each request reserves a
+// distinct, jittered slot, avoiding the request bursts that WAFs flag as
+// suspicious activity.
 actor ScraperSession {
 	private let session: URLSession
 	private var nextSlot: Date = .distantPast
@@ -24,7 +25,7 @@ actor ScraperSession {
 	init() {
 		let configuration = URLSessionConfiguration.default
 		configuration.httpAdditionalHeaders = [
-			"User-Agent": "Corpsboard/1.0 (+https://github.com/Fleuronic/Corpsboard)"
+			"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 		]
 		session = URLSession(configuration: configuration)
 	}

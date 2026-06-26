@@ -104,6 +104,7 @@ private extension API {
 				let detailsDoc: HTMLDocument?
 
 				var scoresURL: URL?
+				var prefetchedScoresHTML: String?
 				if urls == nil {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -141,11 +142,9 @@ private extension API {
 					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
 					if corpsRecord == nil {
-						var request = URLRequest(url: scoresURL!)
-						request.httpMethod = "HEAD"
-
-						let (_, response) = try await scraperSession.data(for: request)
+						let (data, response) = try await scraperSession.data(from: scoresURL!)
 						if (response as! HTTPURLResponse).statusCode == 404 { continue }
+						prefetchedScoresHTML = String(decoding: data, as: UTF8.self)
 					}
 
 					idRows = []
@@ -207,10 +206,20 @@ private extension API {
 					}
 				}
 
+				let scoresHTML: String?
+				if let scoresURL {
+					if let prefetchedScoresHTML {
+						scoresHTML = prefetchedScoresHTML
+					} else {
+						scoresHTML = try? await scraperSession.string(from: scoresURL)
+					}
+				} else {
+					scoresHTML = nil
+				}
+
 				let scoreRows: [String]? = if
-					let scoresURL,
-					let html = try? await scraperSession.string(from: scoresURL),
-					let doc = try? HTML(html: html, encoding: .utf8) {
+					let scoresHTML,
+					let doc = try? HTML(html: scoresHTML, encoding: .utf8) {
 					doc
 						.xpath("//div[@class='score-tbl responsive-tbl finalscores']")
 						.first?
