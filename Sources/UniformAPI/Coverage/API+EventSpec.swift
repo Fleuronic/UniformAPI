@@ -26,8 +26,12 @@ extension API: EventSpec {
 	}
 
 	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
+		await listEvents(for: year, excluding: [], with: corpsRecord)
+	}
+
+	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		let eventURLs = try? await eventURLs(for: year)
-		return await listEvents(for: year, with: eventURLs, with: corpsRecord)
+		return await listEvents(for: year, with: eventURLs, excluding: excludedURLs, with: corpsRecord)
 	}
 
 	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
@@ -83,14 +87,12 @@ private extension API {
 			.compactMap { URL(string: $0 + "/") }
 	}
 
-	func listEvents(for year: Int, with urls: [URL]?, with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
+	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			// let x = urls!.lastIndex { $0.absoluteString.contains("world-championship-finals") }! + 1
-			// for index in x...x {
 			for index in 1...(urls?.count ?? 350) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
@@ -134,6 +136,7 @@ private extension API {
 					detailsDoc = nil
 				} else {
 					let pendingEventURL = urls![index - 1]
+					if excludedURLs.contains(pendingEventURL) { continue }
 					let eventSlug = pendingEventURL.lastPathComponent
 					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
@@ -167,7 +170,8 @@ private extension API {
 					let startOfDate = Calendar.current.startOfDay(for: date)
 					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970)
 					let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
-					if corpsRecord != nil && startOfDate > startOfCurrentDate { scoresURL = nil }
+
+					if startOfDate > startOfCurrentDate { scoresURL = nil }
 
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
@@ -204,7 +208,6 @@ private extension API {
 				}
 
 				let scoreRows: [String]? = if
-					date < .init(),
 					let scoresURL,
 					let html = try? await scraperSession.string(from: scoresURL),
 					let doc = try? HTML(html: html, encoding: .utf8) {
