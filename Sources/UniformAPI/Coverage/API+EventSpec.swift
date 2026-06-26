@@ -30,8 +30,12 @@ extension API: EventSpec {
 	}
 
 	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
-		let eventURLs = try? await eventURLs(for: year)
-		return await listEvents(for: year, with: eventURLs, excluding: excludedURLs, with: corpsRecord)
+		let modifications = (try? await eventModifications(for: year)) ?? [:]
+		let eventURLs = modifications.isEmpty ? nil : modifications.keys.sorted {
+			$0.absoluteString < $1.absoluteString
+		}
+
+		return await listEvents(for: year, with: eventURLs, excluding: excludedURLs, modifications: modifications, with: corpsRecord)
 	}
 
 	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
@@ -70,24 +74,29 @@ extension API: EventSpec {
 
 // MARK: -
 private extension API {
-	func eventURLs(for year: Int) async throws -> [URL]? {
-		guard year >= 2024 else { return nil }
+	func eventModifications(for year: Int) async throws -> [URL: String] {
+		guard year >= 2024 else { return [:] }
 
-		let links = try await (1...7).asyncMap(mode: .serial) { page -> [String] in
+		let modifications = try await (1...7).asyncMap(mode: .serial) { page -> [(String, String)] in
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)")!
 			let (data, _) = try await scraperSession.data(from: apiURL)
 			let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
-			return events.compactMap { $0["link"] as? String }
-		}.flatMap { $0 }
+			return events.compactMap { event in
+				guard let link = event["link"] as? String, let modified = event["modified_gmt"] as? String else { return nil }
+				return (link, modified)
+			}
+		}
 
-		return links
-			.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
-			.filter { $0.contains("/events/\(year)-") }
-			.sorted()
-			.compactMap { URL(string: $0 + "/") }
+		let keys = modifications
+			.flatMap { $0 }
+			.map { ($0.0.hasSuffix("/") ? String($0.0.dropLast()) : $0.0, $0.1) }
+			.filter { $0.0.contains("/events/\(year)-") }
+			.compactMap { link, modified in URL(string: link + "/").map { ($0, modified) } }
+
+		return Dictionary(keys) { first, _ in first }
 	}
 
-	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
+	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], modifications: [URL: String] = [:], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
 
@@ -138,6 +147,13 @@ private extension API {
 				} else {
 					let pendingEventURL = urls![index - 1]
 					if excludedURLs.contains(pendingEventURL) { continue }
+
+					let modification = modifications[pendingEventURL]
+					if let cached = eventCache.event(at: pendingEventURL, modifiedBy: modification) as? EventSpecifiedFields {
+						events.append(cached)
+						continue
+					}
+
 					let eventSlug = pendingEventURL.lastPathComponent
 					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
@@ -407,6 +423,10 @@ private extension API {
 				if let event {
 					// print(event)
 					events.append(event)
+					if let urls {
+						let modification = modifications[urls[index - 1]]
+						eventCache.store(event, at: urls[index - 1], modification: modification)
+					}
 				}
 			}
 
@@ -423,6 +443,33 @@ private extension Array {
 		return stride(from: 0, to: count, by: size).map {
 			Array(self[$0 ..< Swift.min($0 + size, count)])
 		}
+	}
+}
+
+// MARK: -
+private let eventCache = EventCache()
+
+private final class EventCache: @unchecked Sendable {
+	private let lock = NSLock()
+	private var entries: [URL: (modification: String, event: Any)] = [:]
+
+	func event(at url: URL, modifiedBy modification: String?) -> Any? {
+		guard let modification else { return nil }
+
+		lock.lock()
+		defer { lock.unlock() }
+
+		let entry = entries[url]
+		return entry?.modification == modification ? entry?.event : nil
+	}
+
+	func store(_ event: Any, at url: URL, modification: String?) {
+		guard let modification else { return }
+
+		lock.lock()
+		defer { lock.unlock() }
+
+		entries[url] = (modification, event)
 	}
 }
 
