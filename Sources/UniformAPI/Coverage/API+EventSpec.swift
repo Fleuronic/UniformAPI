@@ -35,7 +35,18 @@ extension API: EventSpec {
 			$0.absoluteString < $1.absoluteString
 		}
 
-		return await listEvents(for: year, with: eventURLs, excluding: excludedURLs, modifications: modifications, with: corpsRecord)
+		let latestModification = modifications.values.max()
+		if let latestModification, await modificationWatermark.isCurrent(latestModification) {
+			print("No new events for \(year) since last check (\(latestModification))")
+			return .success([])
+		}
+
+		let results = await listEvents(for: year, with: eventURLs, excluding: excludedURLs, with: corpsRecord)
+		if case .success = results, let latestModification {
+			await modificationWatermark.update(to: latestModification)
+		}
+
+		return results
 	}
 
 	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
@@ -87,13 +98,13 @@ private extension API {
 				return (link, modified)
 			}
 			.map { ($0.0.hasSuffix("/") ? String($0.0.dropLast()) : $0.0, $0.1) }
-			.filter { $0.0.contains("/events/\(year)-") }
+			.filter { $0.0.contains("/events/\(year)-") && !$0.0.contains("education") }
 			.compactMap { link, modified in URL(string: link + "/").map { ($0, modified) } }
 
 		return Dictionary(keys) { first, _ in first }
 	}
 
-	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], modifications: [URL: String] = [:], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
+	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
 
@@ -144,12 +155,6 @@ private extension API {
 				} else {
 					let pendingEventURL = urls![index - 1]
 					if excludedURLs.contains(pendingEventURL) { continue }
-
-					let modification = modifications[pendingEventURL]
-					if let cached = eventCache.event(at: pendingEventURL, modifiedBy: modification) as? EventSpecifiedFields {
-						events.append(cached)
-						continue
-					}
 
 					let eventSlug = pendingEventURL.lastPathComponent
 					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
@@ -420,10 +425,6 @@ private extension API {
 				if let event {
 					// print(event)
 					events.append(event)
-					if let urls {
-						let modification = modifications[urls[index - 1]]
-						eventCache.store(event, at: urls[index - 1], modification: modification)
-					}
 				}
 			}
 
@@ -444,29 +445,17 @@ private extension Array {
 }
 
 // MARK: -
-private let eventCache = EventCache()
+private let modificationWatermark = ModificationWatermark()
 
-private final class EventCache: @unchecked Sendable {
-	private let lock = NSLock()
-	private var entries: [URL: (modification: String, event: Any)] = [:]
+private actor ModificationWatermark {
+	private var value: String?
 
-	func event(at url: URL, modifiedBy modification: String?) -> Any? {
-		guard let modification else { return nil }
-
-		lock.lock()
-		defer { lock.unlock() }
-
-		let entry = entries[url]
-		return entry?.modification == modification ? entry?.event : nil
+	func isCurrent(_ modification: String) -> Bool {
+		value == modification
 	}
 
-	func store(_ event: Any, at url: URL, modification: String?) {
-		guard let modification else { return }
-
-		lock.lock()
-		defer { lock.unlock() }
-
-		entries[url] = (modification, event)
+	func update(to modification: String) {
+		value = modification
 	}
 }
 
