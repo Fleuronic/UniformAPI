@@ -165,7 +165,7 @@ private extension API {
 					date = try! Date(dateString, strategy: formatStyle.parseStrategy)
 
 					let startOfDate = Calendar.current.startOfDay(for: date)
-					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970 + (24 * 3600 * 49))
+					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970)
 					let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
 					if corpsRecord != nil && startOfDate > startOfCurrentDate { scoresURL = nil }
 
