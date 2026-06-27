@@ -37,7 +37,7 @@ extension API: EventSpec {
 
 		let latestModification = modifications.values.max()
 		if let latestModification, await modificationWatermark.isCurrent(latestModification) {
-			print("No new events for \(year) since last check (\(latestModification))")
+			print("No event updates (last updated at \(latestModification))")
 			return .success([])
 		}
 
