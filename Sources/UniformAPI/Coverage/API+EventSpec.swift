@@ -106,6 +106,7 @@ private extension API {
 
 	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
+		let loadingCurrentEvents = corpsRecord == nil
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
 
 		do {
@@ -159,7 +160,7 @@ private extension API {
 					let eventSlug = pendingEventURL.lastPathComponent
 					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
-					if corpsRecord == nil {
+					if loadingCurrentEvents {
 						let (data, response) = try await scraperSession.data(from: scoresURL!)
 						if (response as! HTTPURLResponse).statusCode == 404 { continue }
 						prefetchedScoresHTML = String(decoding: data, as: UTF8.self)
@@ -224,6 +225,47 @@ private extension API {
 					}
 				}
 
+				var slotRows: [String] = []
+				var addressComponents: [String] = []
+				var timeZone = "GMT"
+
+				let detailsHTML: String?
+				if detailsDoc == nil, let detailsURL {
+					detailsHTML = try? await scraperSession.string(from: detailsURL)
+				} else {
+					detailsHTML = nil
+				}
+
+				let hasLineup: Bool
+				if
+					detailsURL != nil,
+					let doc = detailsDoc ?? detailsHTML.flatMap({ try? HTML(html: $0, encoding: .utf8) }),
+					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
+					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
+						.first?
+						.xpath("//td")
+						.compactMap(\.text)) ?? []
+					addressComponents = (doc.xpath("//address")
+						.first!
+						.innerHTML!
+						.components(separatedBy: "<br>")
+						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+						.filter { !$0.isEmpty })
+					timeZone = tableHeader.components(separatedBy: " ")[2]
+					hasLineup = true
+				} else {
+					hasLineup = false
+				}
+
+				if !loadingCurrentEvents, scoresURL != nil, hasLineup, !slotRows.chunked(into: 2).contains(where: { row in
+					guard row.count == 2 else { return false }
+
+					let record = row[1].components(separatedBy: " - ")[0]
+					return Feature.name(for: record).map(isPossibleScoreAnnouncement) ?? false
+				}) {
+					scoresURL = nil
+				}
+
 				let scoresHTML: String?
 				if let scoresURL {
 					if let prefetchedScoresHTML {
@@ -281,32 +323,7 @@ private extension API {
 					validScoresURL = nil
 				}
 
-				var slotRows: [String] = []
-				let addressComponents: [String]
-				let timeZone: String
-
-				let detailsHTML: String?
-				if detailsDoc == nil, let detailsURL {
-					detailsHTML = try? await scraperSession.string(from: detailsURL)
-				} else {
-					detailsHTML = nil
-				}
-				if
-					let detailsURL,
-					let doc = detailsDoc ?? detailsHTML.flatMap({ try? HTML(html: $0, encoding: .utf8) }),
-					let tableHeader = doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text {
-					slotRows = (doc.xpath("//div[@class='table-responsive common-table']/table/tbody[1]")
-						.first?
-						.xpath("//td")
-						.compactMap(\.text)) ?? []
-					addressComponents = (doc.xpath("//address")
-						.first!
-						.innerHTML!
-						.components(separatedBy: "<br>")
-						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-						.filter { !$0.isEmpty })
-					timeZone = tableHeader.components(separatedBy: " ")[2]
-				} else {
+				if !hasLineup {
 					let corps = placements.keys + exhibitionCorps
 					let hasPictures =
 						idRows.count > 10 && idRows[10] == "0" ||
@@ -359,9 +376,6 @@ private extension API {
 						if record.contains(" ,") || record.hasSuffix(" ") { fatalError() }
 						slotRows += ["", record]
 					}
-
-					addressComponents = []
-					timeZone = "GMT"
 				}
 
 				let venueName: String? = if addressComponents.count == 3 && addressComponents[1] != "TBA" {
@@ -433,6 +447,15 @@ private extension API {
 			return .failure(.network(error as NSError))
 		}
 	}
+}
+
+// MARK: -
+private func isPossibleScoreAnnouncement(_ featureName: String) -> Bool {
+	[
+		"Scores Announced",
+		"Awards Ceremony",
+		"Retreat"
+	].contains(featureName)
 }
 
 // MARK: -
