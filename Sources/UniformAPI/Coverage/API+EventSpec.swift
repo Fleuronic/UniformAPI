@@ -29,7 +29,7 @@ extension API: EventSpec {
 		await listEvents(for: year, excluding: [], with: corpsRecord)
 	}
 
-	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
+	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		let modifications = (try? await eventModifications(for: year)) ?? [:]
 		let eventURLs = modifications.isEmpty ? nil : modifications.keys.sorted {
 			$0.absoluteString < $1.absoluteString
@@ -41,7 +41,7 @@ extension API: EventSpec {
 			return .success([])
 		}
 
-		let results = await listEvents(for: year, with: eventURLs, excluding: excludedURLs, with: corpsRecord)
+		let results = await listEvents(for: year, with: eventURLs, excluding: excludedURLs, excludingScoresFor: scoresExcludedURLs, with: corpsRecord)
 		if case .success = results, let latestModification {
 			await modificationWatermark.update(to: latestModification)
 		}
@@ -104,7 +104,7 @@ private extension API {
 		return Dictionary(keys) { first, _ in first }
 	}
 
-	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
+	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
 		var slugs: [String: Int] = [:]
 		let loadingCurrentEvents = corpsRecord == nil
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
@@ -189,7 +189,7 @@ private extension API {
 					let currentDate = Date(timeIntervalSince1970: Date().timeIntervalSince1970)
 					let startOfCurrentDate = Calendar.current.startOfDay(for: currentDate)
 
-					if startOfDate > startOfCurrentDate { scoresURL = nil }
+					if startOfDate > startOfCurrentDate || scoresExcludedURLs.contains(pendingEventURL) { scoresURL = nil }
 
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
