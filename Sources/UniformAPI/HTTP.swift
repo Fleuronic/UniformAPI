@@ -7,13 +7,10 @@ import FoundationNetworking
 
 actor ScraperSession {
 	private let session: URLSession
-	private var nextSlot: Date = .distantPast
 
-	private let minInterval = 1.0
-	private let maxInterval = 2.5
-
-	// When set (SOLVER_URL env), Cloudflare-challenged dci.org endpoints are
-	// fetched through the headless-Chromium solver sidecar instead of directly.
+	// dci.org is behind a Cloudflare challenge, so its requests are always sent
+	// through the headless-browser solver sidecar (residential proxy) named by
+	// SOLVER_URL. Without a solver configured, requests go directly.
 	private let solverURL = ProcessInfo.processInfo.environment["SOLVER_URL"]
 
 	init() {
@@ -26,7 +23,6 @@ actor ScraperSession {
 			"Sec-Fetch-Dest": "document",
 			"Sec-Fetch-Mode": "navigate",
 			"Sec-Fetch-Site": "none",
-			"Sec-Fetch-User": "?1",
 			"sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
 			"sec-ch-ua-mobile": "?0",
 			"sec-ch-ua-platform": "\"macOS\""
@@ -35,22 +31,18 @@ actor ScraperSession {
 	}
 
 	func data(from url: URL) async throws -> (Data, URLResponse) {
-		await waitForSlot()
-		print("Fetching \(url.absoluteString)")
-		let result = try await session.data(from: url)
-		if isBlocked(result.1) {
-			return (try await solvedData(from: url), result.1)
+		if solverURL != nil, isChallenged(url) {
+			return (try await solvedData(from: url), Self.ok(for: url))
 		}
-		return result
+		print("Fetching \(url.absoluteString)")
+		return try await session.data(from: url)
 	}
 
 	func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-		await waitForSlot()
-		let result = try await session.data(for: request)
-		if isBlocked(result.1), let url = request.url {
-			return (try await solvedData(from: url), result.1)
+		if solverURL != nil, let url = request.url, isChallenged(url) {
+			return (try await solvedData(from: url), Self.ok(for: url))
 		}
-		return result
+		return try await session.data(for: request)
 	}
 
 	func string(from url: URL) async throws -> String {
@@ -58,9 +50,10 @@ actor ScraperSession {
 		return String(decoding: data, as: UTF8.self)
 	}
 
-	// Fetch a Cloudflare-challenged URL via the solver sidecar (headless
-	// Chromium), which solves the Managed Challenge and returns the raw body.
-	// Falls back to a direct request when no solver is configured.
+	// Fetch a dci.org URL through the solver sidecar (residential proxy + real
+	// browser), which clears the Cloudflare challenge. If the solver cannot
+	// clear it on any residential IP, that is an IP-level block that should
+	// never happen — crash so we stop and notice, rather than degrade silently.
 	func solvedData(from url: URL) async throws -> Data {
 		guard let solverURL, var components = URLComponents(string: solverURL) else {
 			return try await session.data(from: url).0
@@ -80,37 +73,27 @@ actor ScraperSession {
 			do {
 				let (data, response) = try await session.data(for: request)
 				guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-					throw URLError(.badServerResponse)
+					fatalError("dci.org blocked the solver's residential IP for \(url.absoluteString)")
 				}
 				return data
 			} catch let error as URLError where Self.isSolverStarting(error) && attempt < 9 {
-				// The solver sidecar may not be listening yet on a cold start;
-				// wait and retry so the first request doesn't fall back to a
-				// direct fetch (which would then hit the challenge).
+				// Solver sidecar not listening yet on a cold start: wait and retry.
 				try? await Task.sleep(nanoseconds: 3_000_000_000)
 			}
 		}
-		throw URLError(.cannotConnectToHost)
+		fatalError("solver sidecar unreachable for \(url.absoluteString)")
+	}
+
+	private func isChallenged(_ url: URL) -> Bool {
+		url.host?.hasSuffix("dci.org") ?? false
+	}
+
+	private static func ok(for url: URL) -> URLResponse {
+		HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) ?? URLResponse()
 	}
 
 	private static func isSolverStarting(_ error: URLError) -> Bool {
 		[.cannotConnectToHost, .cannotFindHost, .networkConnectionLost, .dnsLookupFailed].contains(error.code)
-	}
-
-	private func isBlocked(_ response: URLResponse) -> Bool {
-		// A 403 from dci.org means a Cloudflare challenge (or IP block); route that
-		// request through the solver sidecar (residential proxy + real browser)
-		// instead of failing.
-		(response as? HTTPURLResponse)?.statusCode == 403
-	}
-
-	private func waitForSlot() async {
-		let slot = max(Date(), nextSlot)
-		nextSlot = slot.addingTimeInterval(.random(in: minInterval...maxInterval))
-		let delay = slot.timeIntervalSinceNow
-		if delay > 0 {
-			try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-		}
 	}
 }
 
