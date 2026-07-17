@@ -88,7 +88,7 @@ private extension API {
 	func eventModifications(for year: Int) async throws -> [URL: String] {
 		guard year >= 2024 else { return [:] }
 
-		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
+		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&_fields=link,modified_gmt&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
 		let data = try await scraperSession.solvedData(from: apiURL)
 		guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [:] }
 
