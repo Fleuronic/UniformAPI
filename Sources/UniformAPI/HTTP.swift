@@ -45,9 +45,11 @@ actor ScraperSession {
 	}
 
 	// Fetch a dci.org URL through the solver sidecar (residential proxy + real
-	// browser), which clears the Cloudflare challenge. If the solver cannot
-	// clear it on any residential IP, that is an IP-level block that should
-	// never happen — crash so we stop and notice, rather than degrade silently.
+	// browser), which clears the Cloudflare challenge. If the solver cannot clear
+	// it on any residential IP (or is unreachable), return EMPTY data rather than
+	// crashing: the callers' parse guards treat an empty/unparseable body as "no
+	// data" and skip that item, and the next sweep retries it. This keeps a bad
+	// run of flagged proxy IPs from taking the whole scraper down overnight.
 	func solvedData(from url: URL) async throws -> Data {
 		guard let solverURL, var components = URLComponents(string: solverURL) else {
 			return try await session.data(from: url).0
@@ -67,7 +69,9 @@ actor ScraperSession {
 			do {
 				let (data, response) = try await session.data(for: request)
 				guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-					fatalError("dci.org blocked the solver's residential IP for \(url.absoluteString)")
+					// Solver exhausted all IP rotations without clearing. Skip.
+					print("Could not clear \(url.absoluteString) on any IP — skipping")
+					return Data()
 				}
 				let rotations = http.value(forHTTPHeaderField: "X-Solver-Rotations") ?? "?"
 				let seconds = (Double(http.value(forHTTPHeaderField: "X-Solver-Elapsed-Ms") ?? "") ?? 0) / 1000
@@ -78,7 +82,9 @@ actor ScraperSession {
 				try? await Task.sleep(nanoseconds: 3_000_000_000)
 			}
 		}
-		fatalError("solver sidecar unreachable for \(url.absoluteString)")
+		// Solver sidecar never became reachable — skip rather than crash.
+		print("Solver unreachable for \(url.absoluteString) — skipping")
+		return Data()
 	}
 
 	private func isChallenged(_ url: URL) -> Bool {
