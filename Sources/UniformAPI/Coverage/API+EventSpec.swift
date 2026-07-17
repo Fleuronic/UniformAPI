@@ -31,6 +31,12 @@ extension API: EventSpec {
 
 	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		let urls = (try? await eventURLs(for: year)) ?? []
+
+		if year >= 2024, urls.isEmpty {
+			print("No event URLs from wp-json for \(year); skipping this cycle")
+			return .success([])
+		}
+
 		return await listEvents(for: year, with: urls.isEmpty ? nil : urls, excluding: excludedURLs, excludingScoresFor: scoresExcludedURLs, with: corpsRecord)
 	}
 
@@ -75,7 +81,11 @@ private extension API {
 
 		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&_fields=link&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
 		let data = try await scraperSession.solvedData(from: apiURL)
-		guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+		guard let events = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+			let preview = String(decoding: data.prefix(200), as: UTF8.self)
+			print("wp-json did not return a JSON array (\(data.count) bytes): \(preview)")
+			return []
+		}
 
 		let links = events
 			.compactMap { $0["link"] as? String }
@@ -83,7 +93,9 @@ private extension API {
 			.filter { $0.contains("/events/\(year)-") && !$0.contains("education") }
 			.compactMap { URL(string: $0 + "/") }
 
-		return Array(Set(links)).sorted { $0.absoluteString < $1.absoluteString }
+		let urls = Array(Set(links)).sorted { $0.absoluteString < $1.absoluteString }
+		print("wp-json: \(events.count) events -> \(urls.count) \(year) event URLs")
+		return urls
 	}
 
 	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
