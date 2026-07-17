@@ -66,9 +66,12 @@ actor ScraperSession {
 		for attempt in 0..<10 {
 			do {
 				let (data, response) = try await session.data(for: request)
-				guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+				guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
 					fatalError("dci.org blocked the solver's residential IP for \(url.absoluteString)")
 				}
+				let rotations = http.value(forHTTPHeaderField: "X-Solver-Rotations") ?? "?"
+				let seconds = (Double(http.value(forHTTPHeaderField: "X-Solver-Elapsed-Ms") ?? "") ?? 0) / 1000
+				print("Solved \(url.absoluteString) in \(String(format: "%.1f", seconds))s (\(rotations) rotation(s))")
 				return data
 			} catch let error as URLError where Self.isSolverStarting(error) && attempt < 9 {
 				// Solver sidecar not listening yet on a cold start: wait and retry.
