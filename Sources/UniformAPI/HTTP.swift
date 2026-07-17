@@ -38,14 +38,18 @@ actor ScraperSession {
 		await waitForSlot()
 		print("Fetching \(url.absoluteString)")
 		let result = try await session.data(from: url)
-		crashIfBlocked(result.1, for: url)
+		if isBlocked(result.1) {
+			return (try await solvedData(from: url), result.1)
+		}
 		return result
 	}
 
 	func data(for request: URLRequest) async throws -> (Data, URLResponse) {
 		await waitForSlot()
 		let result = try await session.data(for: request)
-		crashIfBlocked(result.1, for: request.url)
+		if isBlocked(result.1), let url = request.url {
+			return (try await solvedData(from: url), result.1)
+		}
 		return result
 	}
 
@@ -59,13 +63,13 @@ actor ScraperSession {
 	// Falls back to a direct request when no solver is configured.
 	func solvedData(from url: URL) async throws -> Data {
 		guard let solverURL, var components = URLComponents(string: solverURL) else {
-			return try await data(from: url).0
+			return try await session.data(from: url).0
 		}
 
 		components.path = "/fetch"
 		components.queryItems = [.init(name: "url", value: url.absoluteString)]
 		guard let solverRequestURL = components.url else {
-			return try await data(from: url).0
+			return try await session.data(from: url).0
 		}
 
 		print("Solving \(url.absoluteString) via solver")
@@ -76,9 +80,11 @@ actor ScraperSession {
 		return data
 	}
 
-	private func crashIfBlocked(_ response: URLResponse, for url: URL?) {
-		guard let response = response as? HTTPURLResponse, response.statusCode == 403 else { return }
-		fatalError("dci.org returned 403 (blocked) for \(url?.absoluteString ?? "unknown URL")")
+	private func isBlocked(_ response: URLResponse) -> Bool {
+		// A 403 from dci.org means a Cloudflare challenge (or IP block); route that
+		// request through the solver sidecar (residential proxy + real browser)
+		// instead of failing.
+		(response as? HTTPURLResponse)?.statusCode == 403
 	}
 
 	private func waitForSlot() async {
