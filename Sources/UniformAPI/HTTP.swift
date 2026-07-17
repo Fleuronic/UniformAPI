@@ -89,7 +89,7 @@ actor ScraperSession {
 	}
 
 	private static func ok(for url: URL) -> URLResponse {
-		HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) ?? URLResponse()
+		HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
 	}
 
 	private static func isSolverStarting(_ error: URLError) -> Bool {
