@@ -30,23 +30,8 @@ extension API: EventSpec {
 	}
 
 	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
-		let modifications = (try? await eventModifications(for: year)) ?? [:]
-		let eventURLs = modifications.isEmpty ? nil : modifications.keys.sorted {
-			$0.absoluteString < $1.absoluteString
-		}
-
-		let latestModification = modifications.values.max()
-		if let latestModification, await modificationWatermark.isCurrent(latestModification) {
-			print("No event updates (last updated at \(latestModification))")
-			return .success([])
-		}
-
-		let results = await listEvents(for: year, with: eventURLs, excluding: excludedURLs, excludingScoresFor: scoresExcludedURLs, with: corpsRecord)
-		if case .success = results, let latestModification {
-			await modificationWatermark.update(to: latestModification)
-		}
-
-		return results
+		let urls = (try? await eventURLs(for: year)) ?? []
+		return await listEvents(for: year, with: urls.isEmpty ? nil : urls, excluding: excludedURLs, excludingScoresFor: scoresExcludedURLs, with: corpsRecord)
 	}
 
 	public func createEvent(on date: Date, inLocationWith locationID: Location.ID, byCircuitWith circuitID: Circuit.ID?, forShowWith showID: Show.ID?, atVenueWith venueID: Venue.ID?, detailsURL: URL?, scoresURL: URL?) async -> SingleResult<DrumKit.Event.ID> {
@@ -85,23 +70,20 @@ extension API: EventSpec {
 
 // MARK: -
 private extension API {
-	func eventModifications(for year: Int) async throws -> [URL: String] {
-		guard year >= 2024 else { return [:] }
+	func eventURLs(for year: Int) async throws -> [URL] {
+		guard year >= 2024 else { return [] }
 
-		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&_fields=link,modified_gmt&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
+		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&_fields=link&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
 		let data = try await scraperSession.solvedData(from: apiURL)
-		guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [:] }
+		guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
 
-		let keys = events
-			.compactMap { event -> (String, String)? in
-				guard let link = event["link"] as? String, let modified = event["modified_gmt"] as? String else { return nil }
-				return (link, modified)
-			}
-			.map { ($0.0.hasSuffix("/") ? String($0.0.dropLast()) : $0.0, $0.1) }
-			.filter { $0.0.contains("/events/\(year)-") && !$0.0.contains("education") }
-			.compactMap { link, modified in URL(string: link + "/").map { ($0, modified) } }
+		let links = events
+			.compactMap { $0["link"] as? String }
+			.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
+			.filter { $0.contains("/events/\(year)-") && !$0.contains("education") }
+			.compactMap { URL(string: $0 + "/") }
 
-		return Dictionary(keys) { first, _ in first }
+		return Array(Set(links)).sorted { $0.absoluteString < $1.absoluteString }
 	}
 
 	func listEvents(for year: Int, with urls: [URL]?, excluding excludedURLs: Set<URL> = [], excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)? = nil) async -> Results<EventSpecifiedFields> {
@@ -464,21 +446,6 @@ private extension Array {
 		return stride(from: 0, to: count, by: size).map {
 			Array(self[$0 ..< Swift.min($0 + size, count)])
 		}
-	}
-}
-
-// MARK: -
-private let modificationWatermark = ModificationWatermark()
-
-private actor ModificationWatermark {
-	private var value: String?
-
-	func isCurrent(_ modification: String) -> Bool {
-		value == modification
-	}
-
-	func update(to modification: String) {
-		value = modification
 	}
 }
 
