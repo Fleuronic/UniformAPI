@@ -72,12 +72,29 @@ actor ScraperSession {
 			return try await session.data(from: url).0
 		}
 
-		print("Solving \(url.absoluteString) via solver")
-		let (data, response) = try await session.data(from: solverRequestURL)
-		guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-			throw URLError(.badServerResponse)
+		var request = URLRequest(url: solverRequestURL)
+		request.timeoutInterval = 300  // the solver may rotate through several IPs
+
+		print("Solving challenge for \(url.absoluteString)")
+		for attempt in 0..<10 {
+			do {
+				let (data, response) = try await session.data(for: request)
+				guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+					throw URLError(.badServerResponse)
+				}
+				return data
+			} catch let error as URLError where Self.isSolverStarting(error) && attempt < 9 {
+				// The solver sidecar may not be listening yet on a cold start;
+				// wait and retry so the first request doesn't fall back to a
+				// direct fetch (which would then hit the challenge).
+				try? await Task.sleep(nanoseconds: 3_000_000_000)
+			}
 		}
-		return data
+		throw URLError(.cannotConnectToHost)
+	}
+
+	private static func isSolverStarting(_ error: URLError) -> Bool {
+		[.cannotConnectToHost, .cannotFindHost, .networkConnectionLost, .dnsLookupFailed].contains(error.code)
 	}
 
 	private func isBlocked(_ response: URLResponse) -> Bool {
