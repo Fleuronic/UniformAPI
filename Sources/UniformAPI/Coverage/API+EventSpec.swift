@@ -90,7 +90,7 @@ private extension API {
 
 		let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
 		let (data, _) = try await scraperSession.data(from: apiURL)
-		let events = try! JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+		guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [:] }
 
 		let keys = events
 			.compactMap { event -> (String, String)? in
