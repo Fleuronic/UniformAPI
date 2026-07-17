@@ -12,6 +12,10 @@ actor ScraperSession {
 	private let minInterval = 1.0
 	private let maxInterval = 2.5
 
+	// When set (SOLVER_URL env), Cloudflare-challenged dci.org endpoints are
+	// fetched through the headless-Chromium solver sidecar instead of directly.
+	private let solverURL = ProcessInfo.processInfo.environment["SOLVER_URL"]
+
 	init() {
 		let configuration = URLSessionConfiguration.default
 		configuration.httpAdditionalHeaders = [
@@ -48,6 +52,28 @@ actor ScraperSession {
 	func string(from url: URL) async throws -> String {
 		let (data, _) = try await data(from: url)
 		return String(decoding: data, as: UTF8.self)
+	}
+
+	// Fetch a Cloudflare-challenged URL via the solver sidecar (headless
+	// Chromium), which solves the Managed Challenge and returns the raw body.
+	// Falls back to a direct request when no solver is configured.
+	func solvedData(from url: URL) async throws -> Data {
+		guard let solverURL, var components = URLComponents(string: solverURL) else {
+			return try await data(from: url).0
+		}
+
+		components.path = "/fetch"
+		components.queryItems = [.init(name: "url", value: url.absoluteString)]
+		guard let solverRequestURL = components.url else {
+			return try await data(from: url).0
+		}
+
+		print("Solving \(url.absoluteString) via solver")
+		let (data, response) = try await session.data(from: solverRequestURL)
+		guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+			throw URLError(.badServerResponse)
+		}
+		return data
 	}
 
 	private func crashIfBlocked(_ response: URLResponse, for url: URL?) {
