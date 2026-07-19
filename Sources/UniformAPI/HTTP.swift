@@ -5,6 +5,14 @@ import Foundation
 import FoundationNetworking
 #endif
 
+// Signals that dci.org is temporarily un-scrapeable — a Cloudflare 524
+// "Connection timed out" origin error, or an IP block the solver couldn't clear.
+// Callers bail the current sweep and retry next cycle rather than treat missing
+// data as truth (which would wrongly delete real events).
+enum ScraperError: Error {
+	case notScrapeable(URL)
+}
+
 actor ScraperSession {
 	private let session: URLSession
 
@@ -45,11 +53,12 @@ actor ScraperSession {
 	}
 
 	// Fetch a dci.org URL through the solver sidecar (residential proxy + real
-	// browser), which clears the Cloudflare challenge. If the solver cannot clear
-	// it on any residential IP (or is unreachable), return EMPTY data rather than
-	// crashing: the callers' parse guards treat an empty/unparseable body as "no
-	// data" and skip that item, and the next sweep retries it. This keeps a bad
-	// run of flagged proxy IPs from taking the whole scraper down overnight.
+	// browser), which clears the Cloudflare challenge. If dci.org isn't scrapeable
+	// right now — the solver can't clear on any IP, the origin returns a
+	// "Connection timed out" page, or the solver is unreachable — throw so the
+	// caller bails the whole sweep and retries next cycle. A half-broken sweep
+	// must never be trusted, since the recorded-events cleanup deletes events that
+	// are absent from it.
 	func solvedData(from url: URL) async throws -> Data {
 		guard let solverURL, var components = URLComponents(string: solverURL) else {
 			return try await session.data(from: url).0
@@ -69,9 +78,17 @@ actor ScraperSession {
 			do {
 				let (data, response) = try await session.data(for: request)
 				guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-					// Solver exhausted all IP rotations without clearing. Skip.
-					print("Could not clear \(url.absoluteString) on any IP — skipping")
-					return Data()
+					// Solver couldn't clear on any IP: dci.org isn't scrapeable right
+					// now, so bail the whole sweep instead of treating the event as gone.
+					print("Could not clear \(url.absoluteString) on any IP — bailing")
+					throw ScraperError.notScrapeable(url)
+				}
+				// dci.org's origin sometimes 524s behind Cloudflare: the challenge
+				// clears but the body is a "Connection timed out" page. Same story —
+				// bail rather than trust a half-broken sweep.
+				if Self.isTimedOut(data) {
+					print("dci.org timed out for \(url.absoluteString) — bailing")
+					throw ScraperError.notScrapeable(url)
 				}
 				let rotations = http.value(forHTTPHeaderField: "X-Solver-Rotations") ?? "?"
 				let seconds = (Double(http.value(forHTTPHeaderField: "X-Solver-Elapsed-Ms") ?? "") ?? 0) / 1000
@@ -82,9 +99,9 @@ actor ScraperSession {
 				try? await Task.sleep(nanoseconds: 3_000_000_000)
 			}
 		}
-		// Solver sidecar never became reachable — skip rather than crash.
-		print("Solver unreachable for \(url.absoluteString) — skipping")
-		return Data()
+		// Solver sidecar never became reachable — bail the sweep.
+		print("Solver unreachable for \(url.absoluteString) — bailing")
+		throw ScraperError.notScrapeable(url)
 	}
 
 	private func isChallenged(_ url: URL) -> Bool {
@@ -97,6 +114,10 @@ actor ScraperSession {
 
 	private static func isSolverStarting(_ error: URLError) -> Bool {
 		[.cannotConnectToHost, .cannotFindHost, .networkConnectionLost, .dnsLookupFailed].contains(error.code)
+	}
+
+	private static func isTimedOut(_ data: Data) -> Bool {
+		!data.isEmpty && String(decoding: data, as: UTF8.self).contains("Connection timed out")
 	}
 }
 

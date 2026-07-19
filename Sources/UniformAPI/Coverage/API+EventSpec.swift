@@ -32,10 +32,7 @@ extension API: EventSpec {
 	public func listEvents(for year: Int, excluding excludedURLs: Set<URL>, excludingScoresFor scoresExcludedURLs: Set<URL> = [], with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
 		let urls = (try? await eventURLs(for: year)) ?? []
 
-		if year >= 2024, urls.isEmpty {
-			print("No event URLs from wp-json for \(year); skipping this cycle")
-			return .success([])
-		}
+		if year >= 2024, urls.isEmpty { return .success([]) }
 
 		return await listEvents(for: year, with: urls.isEmpty ? nil : urls, excluding: excludedURLs, excludingScoresFor: scoresExcludedURLs, with: corpsRecord)
 	}
