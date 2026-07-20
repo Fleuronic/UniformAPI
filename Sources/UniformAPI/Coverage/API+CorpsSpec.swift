@@ -2,7 +2,7 @@
 
 import Kanna
 import Foundation
-import struct Uniform.Corps
+import Uniform
 import struct DrumKit.Corps
 import struct DrumKit.Location
 import struct DrumKitService.IdentifiedCorps
@@ -29,12 +29,13 @@ extension API: CorpsSpec {
 					}
 				}.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 			}.filter { !$0.isEmpty && !$0[1].isEmpty }.map { row in
-				CorpsSpecifiedFields(
+				let location = row[4].isEmpty ? Location.info(for: row[3]) : nil
+				return CorpsSpecifiedFields(
 					id: .init(rawValue: Int(row[0])!),
 					name: row[1],
-					city: row[3],
-					state: row[4],
-					country: row[5]
+					city: location?.0 ?? row[3],
+					state: location?.1 ?? row[4],
+					country: location?.2 ?? row[5]
 				)
 			}
 

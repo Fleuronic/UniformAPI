@@ -13,6 +13,7 @@ import struct DrumKit.Circuit
 import struct DrumKit.Show
 import struct DrumKit.Venue
 import struct DrumKit.Placement
+import struct DrumKit.Division
 import struct DrumKitService.IdentifiedEvent
 import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
@@ -114,6 +115,8 @@ private extension API {
 
 				var scoresURL: URL?
 				var prefetchedScoresHTML: String?
+				var hasPhotoColumn = false
+
 				if urls == nil {
 					guard
 						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
@@ -125,7 +128,7 @@ private extension API {
 							.components(separatedBy: "<br>")
 							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
 						!header[2].isEmpty, !header[2].contains("Online") else { continue }
-					idRows = doc.xpath("//td")
+					idRows = doc.xpath("//td[not(@colspan)]")
 						.compactMap { element in
 							if let url = element.xpath("a").first?["href"] {
 								let components = url.components(separatedBy: "=")
@@ -139,6 +142,10 @@ private extension API {
 							}
 						}
 						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+					hasPhotoColumn = doc.xpath("//th").contains {
+						($0.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == "Photos"
+					}
+
 					date = try! Date(header[1], strategy: formatStyle.parseStrategy)
 					location = EventSpecifiedFields.EventLocationFields(name: header[2])
 					show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
@@ -316,12 +323,7 @@ private extension API {
 
 				if !hasLineup {
 					let corps = placements.keys + exhibitionCorps
-					let hasPictures =
-						idRows.count > 10 && idRows[10] == "0" ||
-						idRows.count > 60 && idRows[60] == "0" ||
-						idRows.count > 180 && idRows[180] == "0" ||
-						idRows[0] == "0"
-					let (initial, multiple) = hasPictures ? (3, 5) : (2, 4)
+					let (initial, multiple) = hasPhotoColumn ? (3, 5) : (2, 4)
 					let ids = stride(from: initial, through: idRows.count - 1, by: multiple).map { idRows[$0] }
 
 					var records: [String] = []
@@ -342,13 +344,16 @@ private extension API {
 								.last!
 								.offset
 
-							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World")) : idRows[index - 2])
+							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? ((show?.name.contains("Open Class") ?? false) ? "Open" : (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World"))) : idRows[index - 2])
 							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
+							let rawDivision = divisionName.isEmpty ? nil : divisionName
+							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : rawDivision
+
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
 									rank: rank,
 									score: score,
-									divisionName: divisionName.isEmpty ? nil : divisionName,
+									divisionName: placementDivision,
 									circuitAbbreviation: circuitAbbreviation
 								)
 							}
@@ -356,7 +361,7 @@ private extension API {
 					}
 
 					for record in records {
-						if record.contains(" ,") || record.hasSuffix(" ") { fatalError() }
+						if record.contains(" ,") || record.hasSuffix(" ") { print(record); fatalError() }
 						if !slotRows.contains(record) {
 							slotRows += ["", record]
 						}
@@ -364,7 +369,7 @@ private extension API {
 
 					for corps in corps {
 						let record = await corpsRecord!(corps)
-						if record.contains(" ,") || record.hasSuffix(" ") { fatalError() }
+						if record.contains(" ,") || record.hasSuffix(" ") { print(record); fatalError() }
 						slotRows += ["", record]
 					}
 				}
@@ -457,30 +462,6 @@ private extension Array {
 		}
 	}
 }
-
-// 2018-cabs-on-the-beach
-// 2018-sounds-on-the-susquehanna
-// 2018-barnum-festival-champions-on-parade
-// 2018-precision-&-pageantry
-// 2018-buccaneer-classic
-// 2018-drum-corps-grand-prix
-// 2018-drum-corps-an-american-tradition-dca-edition
-// 2018-parade-of-champions
-// 2018-march-of-champions
-// 2018-drum-corps-luau
-// 2018-eat-to-the-beat
-// 2018-showdown-of-champions-2018
-// 2018-drum-corps-expo
-// 2018-big-sounds-in-motion
-// 2018-fanfare-2018
-// 2018-southern-showdown
-// 2018-dca-prelims
-// 2018-dca-finals
-// 2018-alumni-spectacular
-// 2018-carolina-gold-invitational
-// 2018-saints-showcase
-// 2018-drum-corps-united-kingdom-open-prelims
-// 2018-drum-corps-united-kingdom-finals
 
 // Add exhibitions from DCX that are not on DCI Scores as 0.0 (2013 – 2026)
 // This is manual each time
