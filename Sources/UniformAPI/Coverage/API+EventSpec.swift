@@ -148,8 +148,8 @@ private extension API {
 
 					date = try! Date(header[1], strategy: formatStyle.parseStrategy)
 					location = EventSpecifiedFields.EventLocationFields(name: header[2])
-					show = EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
-					circuitName = header[3].isEmpty ? (show?.name == "Sounds of Minnesota" ? "DCA" : "DCI") : header[3]
+					show = header[0].uppercased() == "EXHIBITION" ? nil : EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
+					circuitName = header[0].contains("IMBA") ? "IMBA" : (header[3].isEmpty ? (show?.name == "Sounds of Minnesota" ? "DCA" : "DCI") : header[3])
 					detailsDoc = nil
 				} else {
 					let pendingEventURL = urls![index - 1]
@@ -344,7 +344,7 @@ private extension API {
 								.last!
 								.offset
 
-							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? ((show?.name.contains("Open Class") ?? false) ? "Open" : (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World"))) : idRows[index - 2])
+							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (((show?.name.contains("Class A") ?? false) && !(show?.name.contains("Open Class") ?? false)) ? "Class A" : (show?.name.contains("Open Class") ?? false) ? "Open" : (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World"))) : idRows[index - 2])
 							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
 							let rawDivision = divisionName.isEmpty ? nil : divisionName
 							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : rawDivision
@@ -389,8 +389,22 @@ private extension API {
 					)
 				}
 
-				let chunks = slotRows.chunked(into: 2)
+				var chunks = slotRows.chunked(into: 2)
 				let hasTimes = chunks.allSatisfy { !$0[0].isEmpty }
+
+				if hasTimes {
+					let groups = chunks.map { chunk -> String? in
+						let record = chunk[1].components(separatedBy: " - ")[0]
+						return record.isEmpty || Feature.name(for: record) != nil ? nil : Placement.groupName(for: record)
+					}
+
+					if
+						let last = groups.lastIndex(where: { $0 != nil }),
+						last > 0,
+						groups[last] == groups[last - 1] {
+						chunks[last][1] = "Encore - " + chunks[last][1]
+					}
+				}
 
 				let timedGroups: Set<String> = Set(chunks.compactMap { row in
 					let time = row[0]
