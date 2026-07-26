@@ -410,6 +410,17 @@ private extension API {
 					}
 				}
 
+				for index in chunks.indices {
+					let components = chunks[index][1].components(separatedBy: " - ")
+					guard components.count == 2, components[0] == "Encore" else { continue }
+					let corpsName = components[1]
+					if let record = chunks.first(where: {
+						$0[1].components(separatedBy: " - ").first == corpsName
+					})?[1] {
+						chunks[index][1] = "Encore - " + record
+					}
+				}
+
 				let timedGroups: Set<String> = Set(chunks.compactMap { row in
 					let time = row[0]
 					guard !time.isEmpty else { return nil }
