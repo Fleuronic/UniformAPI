@@ -103,7 +103,7 @@ private extension API {
 
 		do {
 			var events: [EventSpecifiedFields] = []
-			for index in 1...(urls?.count ?? 350) {
+			for index in 1...(urls?.count ?? 999) {
 				let showID = String(format: "%03d", index)
 				let id = Uniform.Event.ID(rawValue: Int(showID)!)
 				let idRows: [String]
@@ -128,6 +128,9 @@ private extension API {
 							.components(separatedBy: "<br>")
 							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
 						!header[2].isEmpty, !header[2].contains("Online") else { continue }
+
+					if header[3].contains("BYBA") { continue }
+
 					idRows = doc.xpath("//td[not(@colspan)]")
 						.compactMap { element in
 							if let url = element.xpath("a").first?["href"] {
@@ -344,10 +347,11 @@ private extension API {
 								.last!
 								.offset
 
-							let divisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (((show?.name.contains("Class A") ?? false) && !(show?.name.contains("Open Class") ?? false)) ? "Class A" : (show?.name.contains("Open Class") ?? false) ? "Open" : (circuitName == "SoundSport" ? "SoundSport Medalist Division" : (circuit.abbreviation == "DCA" ? "Open" : "World"))) : idRows[index - 2])
+							let rawDivisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (((show?.name.contains("Class A") ?? false) && !(show?.name.contains("Open Class") ?? false)) ? "Class A" : (show?.name.contains("Open Class") ?? false) ? "Open" : "") : idRows[index - 2])
+							let divisionName = (1992...2007).contains(year) && rawDivisionName.hasPrefix("International") ? "International Division" : rawDivisionName
 							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
 							let rawDivision = divisionName.isEmpty ? nil : divisionName
-							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : rawDivision
+							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : ((1992...2007).contains(year) && rawDivision.map { Division.name(for: $0) } == "All-Age Class" ? "All-Age Division" : ((1992...2007).contains(year) && circuit.abbreviation != "DCA" && rawDivision.map { Division.name(for: $0) } == "Junior Class" ? "Junior Division" : rawDivision))
 
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
@@ -402,7 +406,7 @@ private extension API {
 						let last = groups.lastIndex(where: { $0 != nil }),
 						last > 0,
 						groups[last] == groups[last - 1] {
-						chunks[last][1] = "Encore - " + chunks[last][1]
+						chunks[last][1] = "Encore - " + chunks[last - 1][1]
 					}
 				}
 
