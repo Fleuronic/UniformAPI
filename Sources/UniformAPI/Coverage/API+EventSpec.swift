@@ -119,7 +119,7 @@ private extension API {
 
 				if urls == nil {
 					guard
-						let url = URL(string: "https://www.dcxmuseum.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
+						let url = URL(string: "https://mpamdcx.org/show.cfm?view=show&ShowID=\(year)\(showID)"),
 						case let html = try await scraperSession.string(from: url),
 						let doc = try? HTML(html: html, encoding: .utf8),
 						let header = (doc.xpath("//th[1]")
@@ -129,7 +129,9 @@ private extension API {
 							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
 						!header[2].isEmpty, !header[2].contains("Online") else { continue }
 
-					if header[3].contains("BYBA") { continue }
+					let foreignCountries = ["United Kingdom", "Netherlands", "Germany", "France", "Belgium", "Sweden", "Denmark", "Ireland", "Switzerland", "Norway", "Finland", "Italy", "Spain", "Japan", "Thailand", "Taiwan", "Korea"]
+					if ["BYBA", "DCUK", "DCEurope", "DCG"].contains(where: header[3].contains)
+						|| foreignCountries.contains(where: header[2].hasSuffix) { continue }
 
 					idRows = doc.xpath("//td[not(@colspan)]")
 						.compactMap { element in
@@ -331,7 +333,7 @@ private extension API {
 
 					var records: [String] = []
 
-					for id in ids where !id.isEmpty && !id.contains("-") && id != "99999" {
+					for id in ids where !id.isEmpty && !id.contains("-") && !["99999", "14827"].contains(id) {
 						let record = switch(id, year) {
 						case ("0", 2026): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
 						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
@@ -493,7 +495,5 @@ private extension Array {
 }
 
 // Add exhibitions from DCX that are not on DCI Scores as 0.0 (2013 – 2026)
-// This is manual each time
-
 // Check all numeric-suffixed show slugs
 // Check all Innovations in Brass and American Traditions
