@@ -129,9 +129,7 @@ private extension API {
 							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
 						!header[2].isEmpty, !header[2].contains("Online") else { continue }
 
-					let foreignCountries = ["United Kingdom", "Netherlands", "Germany", "France", "Belgium", "Sweden", "Denmark", "Ireland", "Switzerland", "Norway", "Finland", "Italy", "Spain", "Japan", "Thailand", "Taiwan", "Korea"]
-					if ["BYBA", "DCUK", "DCEurope", "DCG"].contains(where: header[3].contains)
-						|| foreignCountries.contains(where: header[2].hasSuffix) { continue }
+					if header[3].contains("BYBA") { continue }
 
 					idRows = doc.xpath("//td[not(@colspan)]")
 						.compactMap { element in
@@ -161,7 +159,7 @@ private extension API {
 					if excludedURLs.contains(pendingEventURL) { continue }
 
 					let eventSlug = pendingEventURL.lastPathComponent
-					scoresURL = URL(string: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
+					scoresURL = URL(string: "https://www.dci.org/scores/recap/\(eventSlug)/")
 
 					if loadingCurrentEvents {
 						let (data, response) = try await scraperSession.data(from: scoresURL!)
@@ -280,18 +278,49 @@ private extension API {
 					scoresHTML = nil
 				}
 
-				let scoreRows: [String]? = if
-					let scoresHTML,
-					let doc = try? HTML(html: scoresHTML, encoding: .utf8) {
-					doc
-						.xpath("//div[@class='score-tbl responsive-tbl finalscores']")
-						.first?
-						.xpath("/div")
-						.compactMap(\.text)
-						.map { $0.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression) }
-						.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-						.filter { $0 != "Place Corps Score" && !$0.contains("Powered") }
-				} else { nil }
+				let scoreRows: [String]?
+				if let scoresHTML, let doc = try? HTML(html: scoresHTML, encoding: .utf8) {
+					let recapSections = doc.xpath("//div[@class='recap-tbl responsive-tbl']")
+					if recapSections.count == 0 {
+						// Final-scores format (historical loads).
+						scoreRows = doc
+							.xpath("//div[@class='score-tbl responsive-tbl finalscores']")
+							.first?
+							.xpath("/div")
+							.compactMap(\.text)
+							.map { $0.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression) }
+							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+							.filter { $0 != "Place Corps Score" && !$0.contains("Powered") }
+					} else {
+						// Recap format (live loads): one `.recap-tbl` per division, each
+						// preceded by its division heading. Normalize to "<rank> <corps>
+						// <score>" rows with a bare division name between sections so the
+						// loop below can consume them exactly like final-scores rows.
+						var rows: [String] = []
+						for section in recapSections {
+							if let division = section.xpath("preceding::h2[1]").first?.text?
+								.trimmingCharacters(in: .whitespacesAndNewlines), !division.isEmpty {
+								rows.append(division)
+							}
+							for row in section.xpath("table/tbody/tr") {
+								guard
+									let corps = row.xpath("td[@class='sticky-td']").first?.text?
+										.trimmingCharacters(in: .whitespacesAndNewlines),
+									!corps.isEmpty, corps.caseInsensitiveCompare("Corps") != .orderedSame,
+									let total = row.xpath("td[last()]").first?.text?
+										.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression)
+										.trimmingCharacters(in: .whitespacesAndNewlines)
+								else { continue }
+								let parts = total.components(separatedBy: " ")
+								guard parts.count >= 2, Double(parts[0]) != nil, Int(parts[1]) != nil else { continue }
+								rows.append("\(parts[1]) \(corps) \(parts[0])")
+							}
+						}
+						scoreRows = rows
+					}
+				} else {
+					scoreRows = nil
+				}
 
 				var divisionName: String? = nil
 				var exhibitionCorps: [String] = []
@@ -353,7 +382,7 @@ private extension API {
 							let divisionName = (1992...2007).contains(year) && rawDivisionName.hasPrefix("International") ? "International Division" : rawDivisionName
 							let circuitAbbreviation = Circuit.abbreviation(forDivisionNamed: divisionName) ?? circuit.abbreviation
 							let rawDivision = divisionName.isEmpty ? nil : divisionName
-							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : ((1992...2007).contains(year) && rawDivision.map { Division.name(for: $0) } == "All-Age Class" ? "All-Age Division" : ((1992...2007).contains(year) && circuit.abbreviation != "DCA" && rawDivision.map { Division.name(for: $0) } == "Junior Class" ? "Junior Division" : rawDivision))
+							let placementDivision = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : ((1992...2007).contains(year) && rawDivision.map { Division.name(for: $0) } == "All-Age Class" ? (circuit.abbreviation == "DCM" ? "Senior Division" : "All-Age Division") : ((1992...2007).contains(year) && circuit.abbreviation != "DCA" && rawDivision.map { Division.name(for: $0) } == "Junior Class" ? "Junior Division" : rawDivision))
 
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
