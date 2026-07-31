@@ -159,7 +159,9 @@ private extension API {
 					if excludedURLs.contains(pendingEventURL) { continue }
 
 					let eventSlug = pendingEventURL.lastPathComponent
-					scoresURL = URL(string: "https://www.dci.org/scores/recap/\(eventSlug)/")
+					scoresURL = URL(string: loadingCurrentEvents
+						? "https://www.dci.org/scores/recap/\(eventSlug)/"
+						: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
 
 					if loadingCurrentEvents {
 						let (data, response) = try await scraperSession.data(from: scoresURL!)
@@ -195,12 +197,6 @@ private extension API {
 					location = EventSpecifiedFields.EventLocationFields(name: locationString)
 					show = EventSpecifiedFields.EventShowFields(name: showName, city: location?.city, year: year)
 					circuitName = "DCI"
-
-					if scoresURL == nil {
-						let slug = eventSlug.components(separatedBy: "-").dropFirst().joined(separator: "-")
-						let scoreSlug = Show.scoreSlug(for: slug, in: location?.city, year: year)
-						scoresURL = scoresURL.map { _ in URL(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/")! }
-					}
 				}
 
 				guard
@@ -305,11 +301,11 @@ private extension API {
 							for row in section.xpath("table/tbody/tr") {
 								guard
 									let corps = row.xpath("td[@class='sticky-td']").first?.text?
-										.trimmingCharacters(in: .whitespacesAndNewlines),
+									.trimmingCharacters(in: .whitespacesAndNewlines),
 									!corps.isEmpty, corps.caseInsensitiveCompare("Corps") != .orderedSame,
 									let total = row.xpath("td[last()]").first?.text?
-										.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression)
-										.trimmingCharacters(in: .whitespacesAndNewlines)
+									.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression)
+									.trimmingCharacters(in: .whitespacesAndNewlines)
 								else { continue }
 								let parts = total.components(separatedBy: " ")
 								guard parts.count >= 2, Double(parts[0]) != nil, Int(parts[1]) != nil else { continue }
