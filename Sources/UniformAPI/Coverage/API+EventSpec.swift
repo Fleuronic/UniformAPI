@@ -114,6 +114,7 @@ private extension API {
 				let detailsDoc: HTMLDocument?
 
 				var scoresURL: URL?
+				var recapURL: URL?
 				var prefetchedScoresHTML: String?
 				var hasPhotoColumn = false
 
@@ -159,12 +160,13 @@ private extension API {
 					if excludedURLs.contains(pendingEventURL) { continue }
 
 					let eventSlug = pendingEventURL.lastPathComponent
-					scoresURL = URL(string: loadingCurrentEvents
-						? "https://www.dci.org/scores/recap/\(eventSlug)/"
-						: "https://www.dci.org/scores/final-scores/\(eventSlug)/")
+					// Read scores from the recap page (all divisions post atomically); the stored
+					// scores URL is its final-scores counterpart, derived by swapping recap → final-scores.
+					recapURL = URL(string: "https://www.dci.org/scores/recap/\(eventSlug)/")
+					scoresURL = recapURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "/recap/", with: "/final-scores/")) }
 
-					if loadingCurrentEvents {
-						let (data, response) = try await scraperSession.data(from: scoresURL!)
+					if loadingCurrentEvents, let recapURL {
+						let (data, response) = try await scraperSession.data(from: recapURL)
 						if (response as! HTTPURLResponse).statusCode == 404 { continue }
 						prefetchedScoresHTML = String(decoding: data, as: UTF8.self)
 					}
@@ -215,7 +217,8 @@ private extension API {
 						let scoreSlug = Show.scoreSlug(for: eventSlug, in: location?.city, year: year)
 
 						detailsURL = year >= 2019 ? .init(string: "https://www.dci.org/events/\(year)-\(eventSlug)/") : nil
-						scoresURL = year >= 2013 ? .init(string: "https://www.dci.org/scores/final-scores/\(year)-\(scoreSlug)/") : nil
+						recapURL = year >= 2013 ? .init(string: "https://www.dci.org/scores/recap/\(year)-\(scoreSlug)/") : nil
+						scoresURL = recapURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "/recap/", with: "/final-scores/")) }
 					} else {
 						detailsURL = nil
 						scoresURL = nil
@@ -264,12 +267,11 @@ private extension API {
 				}
 
 				let scoresHTML: String?
-				if let scoresURL {
-					if let prefetchedScoresHTML {
-						scoresHTML = prefetchedScoresHTML
-					} else {
-						scoresHTML = try? await scraperSession.string(from: scoresURL)
-					}
+				if let prefetchedScoresHTML {
+					scoresHTML = prefetchedScoresHTML
+				} else if let scoresURL {
+					// wp-json events read from the recap page; museum events only have final-scores.
+					scoresHTML = try? await scraperSession.string(from: recapURL ?? scoresURL)
 				} else {
 					scoresHTML = nil
 				}
