@@ -248,7 +248,7 @@ extension API {
 
 				let scoreRows: [String]?
 				if let scoresHTML, let doc = try? HTML(html: scoresHTML, encoding: .utf8) {
-					let recapSections = doc.xpath("//div[@class='recap-tbl responsive-tbl']")
+					let recapSections = Array(doc.xpath("//div[@class='recap-tbl responsive-tbl']"))
 					if recapSections.isEmpty {
 						// Final-scores format (historical loads).
 						scoreRows = doc
