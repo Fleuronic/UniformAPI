@@ -79,7 +79,7 @@ extension API {
 
 				var scoresURL: URL?
 				var recapURL: URL?
-				var prefetchedScoresHTML: String?  // wp-json/live: recap HTML fetched during resolution
+				var prefetchedScoresHTML: String?  // recap HTML cached during resolution (live + recorded pairs)
 				var hasPhotoColumn = false         // museum: shifts the idRows stride
 
 				// ===== SOURCE A: museum (mpamdcx.org) — historical events, no wp-json URL. =====
@@ -177,11 +177,13 @@ extension API {
 							break
 						} else if recapSlugs.count > 1 {
 							// RECORDED + paired: the page slug can name the other day's recap, so accept
-							// only the sibling whose recap page reports this event's own date.
+							// only the sibling whose recap page reports this event's own date, and cache
+							// that HTML so scores reuse it instead of re-fetching the same recap.
 							guard
 								let recapHTML = try? await scraperSession.string(from: candidate),
 								Self.recap(recapHTML, reports: date, using: formatStyle) else { continue }
 
+							prefetchedScoresHTML = recapHTML
 							recapURL = candidate
 							break
 						} else {
@@ -281,16 +283,19 @@ extension API {
 					scoresURL = nil
 				}
 
-				// Scores HTML: live already cached it during resolution; recorded fetches it now
-				// (only if the guards above left a scoresURL standing).
+				// Scores HTML: reuse the recap fetched during resolution when a scoresURL survived
+				// the guards; otherwise fetch it now. A nulled scoresURL means recorded skips scores
+				// (live keeps its cached recap — its guards never null a scored event).
 				let scoresHTML: String?
-				if let prefetchedScoresHTML {
-					scoresHTML = prefetchedScoresHTML
-				} else if let scoresURL {
+				if let scoresURL {
 					// wp-json events read from the recap page; museum events only have final-scores.
-					scoresHTML = try? await scraperSession.string(from: recapURL ?? scoresURL)
+					if let prefetchedScoresHTML {
+						scoresHTML = prefetchedScoresHTML
+					} else {
+						scoresHTML = try? await scraperSession.string(from: recapURL ?? scoresURL)
+					}
 				} else {
-					scoresHTML = nil
+					scoresHTML = loadingCurrentEvents ? prefetchedScoresHTML : nil
 				}
 
 				// Placement rows from whichever scores page we fetched (recap or final-scores).
