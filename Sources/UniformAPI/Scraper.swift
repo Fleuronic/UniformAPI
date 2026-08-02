@@ -59,8 +59,9 @@ extension API {
 		let loadingCurrentEvents = corpsRecord == nil
 		// "Month D, YYYY" (e.g. "August 1, 2026"): parses details-page dates AND matches recap pages.
 		let formatStyle = Date.FormatStyle().month(.wide).day().year().locale(Locale(identifier: "en_US_POSIX"))
-		// Every event slug this season, so a two-day event's "-2" sibling can be detected.
-		let slugSet = Set((urls ?? []).map(\.lastPathComponent))
+		// Every event slug this season — from the full feed, NOT the passed `urls` (the live
+		// path only passes today's events), so a two-day event's "-2" sibling is detectable live.
+		let slugSet = Set(((try? await eventURLs(for: year)) ?? urls ?? []).map(\.lastPathComponent))
 
 		do {
 			var events: [EventSpecifiedFields] = []
