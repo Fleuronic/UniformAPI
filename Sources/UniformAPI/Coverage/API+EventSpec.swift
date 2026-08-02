@@ -19,10 +19,16 @@ import protocol UniformService.EventSpec
 
 extension API: EventSpec {
 	public func listEvents(with urls: [URL]) async -> Results<EventSpecifiedFields> {
-		guard !urls.isEmpty else { return .success([]) }
+		await listEvents(with: urls, excluding: [])
+	}
+
+	// `urls` seeds the sibling-detection slug set; `excludedURLs` are present only for that
+	// detection (a two-day event's other night) and are skipped rather than re-scraped.
+	public func listEvents(with urls: [URL], excluding excludedURLs: Set<URL>) async -> Results<EventSpecifiedFields> {
+		guard urls.contains(where: { !excludedURLs.contains($0) }) else { return .success([]) }
 
 		let currentYear = Calendar.current.component(.year, from: .init())
-		return await listEvents(for: currentYear, with: urls)
+		return await listEvents(for: currentYear, with: urls, excluding: excludedURLs)
 	}
 
 	public func listEvents(for year: Int, with corpsRecord: ((String) async -> String)?) async -> Results<EventSpecifiedFields> {
