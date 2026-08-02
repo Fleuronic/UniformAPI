@@ -64,6 +64,18 @@ extension API {
 
 		do {
 			var events: [EventSpecifiedFields] = []
+			// Per-sweep recap cache: a two-day event's paired slugs get probed by BOTH nights,
+			// so fetch each recap page at most once per sweep. Returns nil on a 404.
+			var recapCache: [URL: String] = [:]
+			func cachedRecapHTML(at url: URL) async throws -> String? {
+				if let cached = recapCache[url] { return cached }
+				let (data, response) = try await scraperSession.data(from: url)
+				guard (response as! HTTPURLResponse).statusCode != 404 else { return nil }
+				let html = String(decoding: data, as: UTF8.self)
+				recapCache[url] = html
+				return html
+			}
+
 			// wp-json gives an exact URL list; the museum is probed by sequential ShowID.
 			for index in 1...(urls?.count ?? 999) {
 				let showID = String(format: "%03d", index)
@@ -164,12 +176,8 @@ extension API {
 					for slug in recapSlugs {
 						guard let candidate = URL(string: "https://www.dci.org/scores/recap/\(slug)/") else { continue }
 						if loadingCurrentEvents {
-							// LIVE: fetch now and cache the HTML; for a paired event require a date match.
-							guard
-								case let (data, response) = try await scraperSession.data(from: candidate),
-								(response as! HTTPURLResponse).statusCode != 404 else { continue }
-
-							let recapHTML = String(decoding: data, as: UTF8.self)
+							// LIVE: fetch now (cached per sweep); for a paired event require a date match.
+							guard let recapHTML = try await cachedRecapHTML(at: candidate) else { continue }
 							if recapSlugs.count > 1, !Self.recap(recapHTML, reports: date, using: formatStyle) { continue }
 
 							prefetchedScoresHTML = recapHTML
@@ -180,7 +188,7 @@ extension API {
 							// only the sibling whose recap page reports this event's own date, and cache
 							// that HTML so scores reuse it instead of re-fetching the same recap.
 							guard
-								let recapHTML = try? await scraperSession.string(from: candidate),
+								let recapHTML = try? await cachedRecapHTML(at: candidate),
 								Self.recap(recapHTML, reports: date, using: formatStyle) else { continue }
 
 							prefetchedScoresHTML = recapHTML
