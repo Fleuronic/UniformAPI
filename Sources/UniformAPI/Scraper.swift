@@ -203,12 +203,34 @@ extension API {
 						}
 					}
 
-					// LIVE with no matching recap => scores not posted yet; skip and retry next poll.
-					// (Recorded proceeds without scores rather than dropping the event.)
-					if loadingCurrentEvents, recapURL == nil { continue }
+					// LIVE fallback: an event sometimes posts final-scores without ever posting a
+					// recap. When no recap matched, take a final-scores page that holds real score
+					// rows; a two-day pair's two nights are told apart by the page's hero date, since
+					// the final-scores meta (unlike the recap's) carries none.
+					if loadingCurrentEvents, recapURL == nil {
+						for slug in recapSlugs {
+							guard
+								let candidate = URL(string: "https://www.dci.org/scores/final-scores/\(slug)/"),
+								let finalScoresHTML = try await cachedRecapHTML(at: candidate),
+								Self.scoreRows(fromScores: finalScoresHTML) != nil,
+								recapSlugs.count == 1 || Self.finalScores(finalScoresHTML, reports: date, using: formatStyle)
+							else { continue }
 
-					// The stored scores URL is the recap's final-scores counterpart.
-					scoresURL = recapURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "/recap/", with: "/final-scores/")) }
+							prefetchedScoresHTML = finalScoresHTML
+							scoresURL = candidate
+							break
+						}
+					}
+
+					// LIVE with neither recap nor final-scores => scores not posted yet; skip and
+					// retry next poll. (Recorded proceeds without scores rather than dropping it.)
+					if loadingCurrentEvents, recapURL == nil, prefetchedScoresHTML == nil { continue }
+
+					// The stored scores URL is the recap's final-scores counterpart — or, when the
+					// fallback above fired, the final-scores page itself (already in `scoresURL`).
+					if let recapURL {
+						scoresURL = URL(string: recapURL.absoluteString.replacingOccurrences(of: "/recap/", with: "/final-scores/"))
+					}
 
 					// Never attach scores to a future event, or one the caller opted out of.
 					let startOfDate = Calendar.current.startOfDay(for: date)
@@ -474,6 +496,14 @@ extension API {
 		let target = date.formatted(formatStyle)
 		let descriptions = doc.xpath("//meta[@name='description' or @property='og:description']")
 		return descriptions.contains { ($0["content"] ?? "").contains(target) }
+	}
+
+	// Does this final-scores page report the event on `date`? Unlike the recap, its meta carries no
+	// date, so match the full "Month D, YYYY" the page prints in its hero — the only place that
+	// format appears (upcoming-event cards use an abbreviated "DD Mon"). Lets a two-day pair's two
+	// nights be told apart when only final-scores (no recap) posted.
+	static func finalScores(_ html: String, reports date: Date, using formatStyle: Date.FormatStyle) -> Bool {
+		html.contains(date.formatted(formatStyle))
 	}
 
 	// Placement rows parsed out of a DCI scores page, each normalized to a
