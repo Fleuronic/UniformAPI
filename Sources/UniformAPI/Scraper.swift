@@ -176,9 +176,11 @@ extension API {
 					for slug in recapSlugs {
 						guard let candidate = URL(string: "https://www.dci.org/scores/recap/\(slug)/") else { continue }
 						if loadingCurrentEvents {
-							// LIVE: fetch now (cached per sweep); for a paired event require a date match.
+							// LIVE: fetch now (cached per sweep); require the recap to actually report this
+							// event's date, since the solver returns a synthetic 200 for a not-yet-posted
+							// recap — so an "up but not really ours" page can't seed bogus scores.
 							guard let recapHTML = try await cachedRecapHTML(at: candidate) else { continue }
-							if recapSlugs.count > 1, !Self.recap(recapHTML, reports: date, using: formatStyle) { continue }
+							if !Self.recap(recapHTML, reports: date, using: formatStyle) { continue }
 
 							prefetchedScoresHTML = recapHTML
 							recapURL = candidate
@@ -487,7 +489,9 @@ extension API {
 		let recapSections = Array(doc.xpath("//div[@class='recap-tbl responsive-tbl']"))
 		guard !recapSections.isEmpty else {
 			// Final-scores format: a single flat `.finalscores` block of <div> cells.
-			return doc
+			// An empty result means the table shell exists but holds no scores (a stub /
+			// not-yet-posted page); treat that as "no scores" so no scoresURL gets attached.
+			let cells = doc
 				.xpath("//div[@class='score-tbl responsive-tbl finalscores']")
 				.first?
 				.xpath("/div")
@@ -495,12 +499,14 @@ extension API {
 				.map { $0.replacingOccurrences(of: "[\\r\\n ]+", with: " ", options: .regularExpression) }
 				.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 				.filter { $0 != "Place Corps Score" && !$0.contains("Powered") }
+			return cells?.isEmpty == false ? cells : nil
 		}
 
 		// Recap format: one `.recap-tbl` per division, each preceded by its division
 		// heading. Emit the bare division name between sections so downstream code can
 		// consume these rows exactly like the final-scores rows above.
 		var rows: [String] = []
+		var hasScoreRow = false
 		for section in recapSections {
 			if let division = section.xpath("preceding::h2[1]").first?.text?
 				.trimmingCharacters(in: .whitespacesAndNewlines), !division.isEmpty {
@@ -520,9 +526,12 @@ extension API {
 				let parts = total.components(separatedBy: " ")
 				guard parts.count >= 2, Double(parts[0]) != nil, Int(parts[1]) != nil else { continue }
 				rows.append("\(parts[1]) \(corps) \(parts[0])")
+				hasScoreRow = true
 			}
 		}
-		return rows
+		// Division headings alone (no populated score rows) mean the recap isn't really
+		// posted yet; return nil so no scoresURL is attached to a scoreless event.
+		return hasScoreRow ? rows : nil
 	}
 
 	// Build the event's schedule slots from the flat [time, name, time, name, …] rows,
