@@ -3,6 +3,7 @@
 import Papyrus
 import Schemata
 import DrumKit
+import Foundation
 import enum Catenary.Request
 import struct Uniform.Event
 import struct Uniform.Corps
@@ -47,6 +48,15 @@ public extension API where Endpoint == EndpointAPI {
 		let url = "https://diesel.hasura.app/v1/graphql"
 		let provider = Provider(baseURL: url).modifyRequests { request in
 			request.addHeader("x-hasura-admin-secret", value: apiKey)
+		}
+
+		provider.intercept { request, next in
+			let response = try await next(request)
+			if let data = response.body, let string = String(data: data, encoding: .utf8), string.contains("\"errors\"") || !string.contains("\"data\"") {
+				let requestString = request.body.flatMap { String(data: $0, encoding: .utf8) } ?? "<no body>"
+				FileHandle.standardError.write(Data("[GQL-FAIL] request: \(requestString)\n[GQL-FAIL] response: \(string)\n".utf8))
+			}
+			return response
 		}
 
 		self.init(endpoint: .init(provider: provider))
