@@ -310,7 +310,7 @@ extension API {
 					guard row.count == 2 else { return false }
 
 					let record = row[1].components(separatedBy: " - ")[0]
-					return Feature.name(for: record).map(isPossibleScoreAnnouncement) ?? false
+					return Feature.name(for: record).map(Feature.isPossibleScoreAnnouncement) ?? false
 				}) {
 					scoresURL = nil
 				}
@@ -631,17 +631,6 @@ extension API {
 			return slot
 		}
 	}
-}
-
-// MARK: -
-// Lineup features that signal an event actually awarded scores; used by the recorded-load
-// guard to avoid attaching scores to an event whose schedule never announced them.
-private func isPossibleScoreAnnouncement(_ featureName: String) -> Bool {
-	[
-		"Scores Announced",
-		"Awards Ceremony",
-		"Retreat"
-	].contains(featureName)
 }
 
 // MARK: -
