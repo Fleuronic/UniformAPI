@@ -52,7 +52,7 @@
       "location" : "https://github.com/Fleuronic/DrumKit",
       "state" : {
         "branch" : "main",
-        "revision" : "c8d4901a31885e218842fca12ecdb886a50800bd"
+        "revision" : "a572fdb2392134dd0a6269d21c0cce23cfbc8fe8"
       }
     },
     {
@@ -61,7 +61,7 @@
       "location" : "https://github.com/Fleuronic/DrumKitService",
       "state" : {
         "branch" : "main",
-        "revision" : "10c18eed3085d8d6f5f358ec5a2d1ee6594228f4"
+        "revision" : "4a7bf83535f337a83fe24fa567f9e410c4cb703c"
       }
     },
     {
@@ -97,7 +97,7 @@
       "location" : "https://github.com/jordanekay/PersistDB",
       "state" : {
         "branch" : "master",
-        "revision" : "75c77914db0f316b2d7269b8521b4226900d812d"
+        "revision" : "83370db85663d0b5c2bae28d237c67ce1ffcf6d8"
       }
     },
     {
@@ -115,7 +115,7 @@
       "location" : "https://github.com/jordanekay/Schemata",
       "state" : {
         "branch" : "master",
-        "revision" : "776426b83cf9f11d9a88923388866f36504fda26"
+        "revision" : "e77b3d2272bf296e5f22cce76be0b0a227752d91"
       }
     },
     {
@@ -151,7 +151,7 @@
       "location" : "https://github.com/Fleuronic/Uniform",
       "state" : {
         "branch" : "main",
-        "revision" : "e9ebca3d1031a47f58ddb8ceac99c0c06e98ccd0"
+        "revision" : "12115214378aa2f3230b0e84a426b22d250d8a1c"
       }
     },
     {
@@ -160,7 +160,7 @@
       "location" : "https://github.com/Fleuronic/UniformService",
       "state" : {
         "branch" : "main",
-        "revision" : "0defb37913d6d26ce443cd4a9a328f2afce4f845"
+        "revision" : "15fe5b4dd30853c778d83ceb8e2c6f1c0b3c3232"
       }
     }
   ],

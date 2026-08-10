@@ -87,7 +87,7 @@ extension API {
 				let location: EventSpecifiedFields.EventLocationFields?
 				let show: EventSpecifiedFields.EventShowFields?
 				let circuitName: String
-				let detailsDoc: HTMLDocument?  // wp-json: parsed details page, reused for the lineup
+				let detailsDoc: (any HTMLDocument)?  // wp-json: parsed details page, reused for the lineup
 
 				var scoresURL: URL?
 				var recapURL: URL?
