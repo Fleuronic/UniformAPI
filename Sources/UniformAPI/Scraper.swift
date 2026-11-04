@@ -14,6 +14,7 @@ import struct DrumKit.Show
 import struct DrumKit.Venue
 import struct DrumKit.Placement
 import struct DrumKit.Division
+import struct DrumKit.Corps
 import struct DrumKitService.IdentifiedEvent
 import protocol Catena.ResultProviding
 import protocol UniformService.EventSpec
@@ -109,7 +110,7 @@ extension API {
 							.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }),
 						!header[2].isEmpty, !header[2].contains("Online") else { continue }
 
-					if header[3].contains("BYBA") { continue }
+					guard Circuit.isValid(with: Circuit.circuit(for: header[3])) else { continue }
 
 					// Each data cell is either a corps-id link (take the id) or plain text.
 					idRows = doc.xpath("//td[not(@colspan)]")
@@ -132,10 +133,10 @@ extension API {
 
 					// Map the header cells onto the event basics; circuit falls back to DCI (or DCA
 					// for the one Minnesota exception) when the header names none.
-					date = try! Date(header[1], strategy: formatStyle.parseStrategy)
-					location = EventSpecifiedFields.EventLocationFields(name: header[2])
+					date = try! Date(Uniform.Event.date(for: header[1], showID: Int("\(year)\(showID)")), strategy: formatStyle.parseStrategy)
+					location = EventSpecifiedFields.EventLocationFields(name: Location.record(for: header[2], in: year))
 					show = header[0].uppercased() == "EXHIBITION" ? nil : EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
-					circuitName = header[0].contains("IMBA") ? "IMBA" : (header[3].isEmpty ? (show?.name == "Sounds of Minnesota" ? "DCA" : "DCI") : header[3])
+					circuitName = Circuit.record(for: header[3], showID: Int("\(year)\(showID)"), showNamed: show?.name, in: location?.city, state: location?.state, country: location?.country, year: year)
 					detailsDoc = nil
 					// ===== SOURCE B: current DCI (dci.org) — one wp-json event page per URL. =====
 				} else {
@@ -338,7 +339,7 @@ extension API {
 				var divisionName: String? = nil
 				var exhibitionCorps: [String] = []
 				var placements: [String: EventSpecifiedFields.EventSlotFields.SlotPlacementFields] = [:]
-				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? (circuitName == "SoundSport" ? "DCI" : circuitName) : "DCI")
+				let circuit = EventSpecifiedFields.EventCircuitFields(name: scoreRows == nil ? circuitName : "DCI")
 
 				// `validScoresURL` is stored only when a table actually parsed from the page.
 				let validScoresURL: URL?
@@ -383,11 +384,11 @@ extension API {
 
 					var records: [String] = []
 
-					for id in ids where !id.isEmpty && !id.contains("-") && !["99999", "14827"].contains(id) {
-						let record = switch(id, year) {
-						case ("0", 2026): "St. Joe’s of Batavia Brass Ensemble - Batavia, NY"
-						case ("0", 2019): "EPIC Percussion Junior Cadets - Williamsport, PA"
-						default: await corpsRecord!(id)
+					for id in ids where !id.isEmpty && !id.contains("-") && DrumKit.Corps.isValid(id: id) {
+						let record = if let override = DrumKit.Corps.record(forID: id, in: circuitName, year: year) {
+							override
+						} else {
+							await corpsRecord!(id)
 						}
 
 						let name = record.components(separatedBy: " - ")[0]
@@ -402,17 +403,14 @@ extension API {
 							// Division name comes from the table (or is inferred from the show name),
 							// then normalized to the era's naming (1992–2007 "* Division" labels and
 							// circuit-specific All-Age/Junior/Senior renames).
-							let rawDivisionName = show.flatMap { $0.name.contains("Mini") ? "Mini-Corps" : nil } ?? (idRows[index - 2].isEmpty ? (((show?.name.contains("Class A") ?? false) && !(show?.name.contains("Open Class") ?? false)) ? "Class A" : (show?.name.contains("Open Class") ?? false) ? "Open" : "") : idRows[index - 2])
-							let divisionName = (1992...2007).contains(year) && rawDivisionName.hasPrefix("International") ? "International Division" : rawDivisionName
-							let rawDivision = divisionName.isEmpty ? nil : divisionName
-							let adjustedDivisionName = circuit.abbreviation == "MCA" || (circuit.abbreviation == "DCA" && rawDivision.map { Division.name(for: $0) } == "All-Age Class") ? nil : ((1992...2007).contains(year) && rawDivision.map { Division.name(for: $0) } == "All-Age Class" ? (circuit.abbreviation == "DCM" ? "Senior Division" : "All-Age Division") : ((1992...2007).contains(year) && circuit.abbreviation != "DCA" && rawDivision.map { Division.name(for: $0) } == "Junior Class" ? "Junior Division" : rawDivision))
+							let divisionName = Division.name(forLabel: idRows[index - 2], showNamed: show?.name, in: circuitName, abbreviation: circuit.abbreviation, city: location?.city, year: year)
 
 							if let rank = Int(idRows[index - 1]), let score = Double(idRows[index + 1]) {
 								placements[name] = .init(
 									rank: rank,
 									score: score,
 									circuit: circuit,
-									division: adjustedDivisionName.map { name in
+									division: divisionName.map { name in
 										EventSpecifiedFields.EventSlotFields.SlotPlacementFields.PlacementDivisionFields(
 											name: name,
 											circuit: circuit
