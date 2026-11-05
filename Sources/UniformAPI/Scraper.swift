@@ -97,6 +97,7 @@ extension API {
 
 				// ===== SOURCE A: museum (mpamdcx.org) — historical events, no wp-json URL. =====
 				if urls == nil {
+					guard Uniform.Event.isValid(showID: Int("\(year)\(showID)")) else { continue }
 					// The header cell is "<show><br><date><br><location><br><circuit>"; bail on a
 					// blank/online-only show (and on BYBA, which isn't a real competitive event).
 					guard
@@ -135,7 +136,7 @@ extension API {
 					// for the one Minnesota exception) when the header names none.
 					date = try! Date(Uniform.Event.date(for: header[1], showID: Int("\(year)\(showID)")), strategy: formatStyle.parseStrategy)
 					location = EventSpecifiedFields.EventLocationFields(name: Location.record(for: header[2], in: year))
-					show = header[0].uppercased() == "EXHIBITION" ? nil : EventSpecifiedFields.EventShowFields(name: header[0], city: location?.city, year: year)
+					show = header[0].uppercased() == "EXHIBITION" ? nil : EventSpecifiedFields.EventShowFields(name: Show.record(for: header[0], showID: Int("\(year)\(showID)")), city: location?.city, year: year)
 					circuitName = Circuit.record(for: header[3], showID: Int("\(year)\(showID)"), showNamed: show?.name, in: location?.city, state: location?.state, country: location?.country, year: year)
 					detailsDoc = nil
 					// ===== SOURCE B: current DCI (dci.org) — one wp-json event page per URL. =====
