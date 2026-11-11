@@ -64,7 +64,7 @@ extension API {
 		let slugSet = Set((urls ?? []).map(\.lastPathComponent))
 
 		do {
-			var events: [EventSpecifiedFields] = []
+			var pendingEvents: [(showID: Int?, slots: [EventSpecifiedFields.EventSlotFields], make: ([EventSpecifiedFields.EventSlotFields]) -> EventSpecifiedFields?)] = []
 			// Per-sweep recap cache: a two-day event's paired slugs get probed by BOTH nights,
 			// so fetch each recap page at most once per sweep. Returns nil on a 404.
 			var recapCache: [URL: String] = [:]
@@ -135,7 +135,7 @@ extension API {
 					// Map the header cells onto the event basics; circuit falls back to DCI (or DCA
 					// for the one Minnesota exception) when the header names none.
 					date = try! Date(Uniform.Event.date(for: header[1], showID: Int("\(year)\(showID)")), strategy: formatStyle.parseStrategy)
-					location = EventSpecifiedFields.EventLocationFields(name: Location.record(for: header[2], in: year))
+					location = EventSpecifiedFields.EventLocationFields(name: Location.record(for: header[2], showID: Int("\(year)\(showID)"), in: year))
 					show = header[0].uppercased() == "EXHIBITION" ? nil : EventSpecifiedFields.EventShowFields(name: Show.record(for: header[0], showID: Int("\(year)\(showID)")), city: location?.city, year: year)
 					circuitName = Circuit.record(for: header[3], showID: Int("\(year)\(showID)"), showNamed: show?.name, in: location?.city, state: location?.state, country: location?.country, year: year)
 					detailsDoc = nil
@@ -459,23 +459,33 @@ extension API {
 				let slots = slots(from: slotRows, placements: placements)
 
 				// Emit the fully-assembled event.
-				let event = EventSpecifiedFields(
-					id: id,
-					date: date,
-					detailsURL: detailsURL,
-					scoresURL: validScoresURL,
-					timeZone: timeZone,
-					location: location,
-					circuit: circuit,
-					show: show,
-					venue: venue,
-					slots: slots
-				)
+				pendingEvents.append((urls == nil ? Int("\(year)\(showID)") : nil, slots, { slots in
+					EventSpecifiedFields(
+						id: id,
+						date: date,
+						detailsURL: detailsURL,
+						scoresURL: validScoresURL,
+						timeZone: timeZone,
+						location: location,
+						circuit: circuit,
+						show: show,
+						venue: venue,
+						slots: slots
+					)
+				}))
+			}
 
-				if let event {
-					// print(event)
-					events.append(event)
+			var mergedSlots: [Int: [EventSpecifiedFields.EventSlotFields]] = [:]
+			for pending in pendingEvents {
+				if let target = Uniform.Event.mergeTarget(for: pending.showID) {
+					mergedSlots[target, default: []] += pending.slots
 				}
+			}
+
+			let events = pendingEvents.compactMap { pending -> EventSpecifiedFields? in
+				guard Uniform.Event.mergeTarget(for: pending.showID) == nil else { return nil }
+
+				return pending.make(pending.slots + (pending.showID.flatMap { mergedSlots[$0] } ?? []))
 			}
 
 			return .success(events)
