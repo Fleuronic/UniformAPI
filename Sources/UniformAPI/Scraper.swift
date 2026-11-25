@@ -54,6 +54,11 @@ extension API {
 		return urls
 	}
 
+	public func hasLineup(at url: URL) async throws -> Bool {
+		let doc = try HTML(html: try await scraperSession.string(from: url), encoding: .utf8)
+		return doc.xpath("//div[@class='lineup-times-table']/div/p").first?.text != nil
+	}
+
 	// Scrapes a season's events into `EventSpecifiedFields` from one of two sources:
 	//   • `urls != nil` — current DCI events (dci.org wp-json event pages + recap scores).
 	//   • `urls == nil` — historical events from the mpamdcx.org museum (probed by ShowID).
