@@ -33,7 +33,7 @@ extension API: CorpsSpec {
 				return CorpsSpecifiedFields(
 					id: .init(rawValue: Int(row[0])!),
 					name: row[1],
-					city: location?.0 ?? row[3],
+					city: location?.0.flatMap { $0 } ?? row[3],
 					state: location?.1 ?? row[4],
 					country: location?.2 ?? row[5]
 				)
