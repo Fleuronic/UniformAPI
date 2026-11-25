@@ -24,7 +24,6 @@ extension API {
 	// The season's DCI event-page URLs, straight from the wp-json events feed (a Sep–Sep
 	// window). Only wp-json years (2024+) have this; earlier years come from the museum.
 	// Both a "<slug>" and its two-day "<slug>-2" sibling appear here when present.
-	// Pages through the feed: a bulk re-dating once filled a season's window past 100.
 	public func eventURLs(for year: Int) async throws -> [URL] {
 		guard year >= 2024 else { return [] }
 
@@ -33,7 +32,6 @@ extension API {
 			let apiURL = URL(string: "https://www.dci.org/wp-json/wp/v2/event?per_page=100&page=\(page)&_fields=link&after=\(year - 1)-09-01T00:00:00&before=\(year)-09-01T00:00:00")!
 			let data = try await scraperSession.solvedData(from: apiURL)
 			guard let pageEvents = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
-				// Past the last page, WordPress answers with an error object instead of an array.
 				if page > 1 { break }
 
 				let preview = String(decoding: data.prefix(200), as: UTF8.self)
