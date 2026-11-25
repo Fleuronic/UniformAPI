@@ -34,7 +34,7 @@ extension API: CorpsSpec {
 					id: .init(rawValue: Int(row[0])!),
 					name: row[1],
 					city: location?.0.flatMap { $0 } ?? row[3],
-					state: location?.1 ?? row[4],
+					state: location?.1.flatMap { $0 } ?? row[4],
 					country: location?.2 ?? row[5]
 				)
 			}
